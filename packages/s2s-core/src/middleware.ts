@@ -9,6 +9,7 @@ import {
   S2S_HTTP_STATUS,
   S2S_VERIFIER_ERRORS,
 } from './constants';
+import { normalizePemKey } from './utils';
 
 /**
  * Ambient type augmentation for Express Request to append the verified calling service name.
@@ -63,17 +64,6 @@ export interface S2STokenPayload extends JwtPayload {
   iss?: string;
   sub?: string;
   aud?: string | string[];
-}
-
-/**
- * Normalizes PEM formatted keys by resolving escaped newline characters.
- */
-function normalizePemKey(key: string): string {
-  const trimmed = key.trim();
-  if (trimmed.includes('\\n')) {
-    return trimmed.replace(/\\n/g, '\n');
-  }
-  return trimmed;
 }
 
 /**

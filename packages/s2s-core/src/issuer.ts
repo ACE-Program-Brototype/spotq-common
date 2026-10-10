@@ -1,5 +1,6 @@
 import jwt, { Algorithm, SignOptions } from 'jsonwebtoken';
 import { S2S_CONFIG_DEFAULTS, S2S_ISSUER_ERRORS } from './constants';
+import { normalizePemKey } from './utils';
 
 /**
  * Configuration contract for generating Service-to-Service (S2S) JWTs.
@@ -27,18 +28,6 @@ export interface S2SIssuerConfig {
    * Defaults to '15m'.
    */
   expiresIn?: SignOptions['expiresIn'];
-}
-
-/**
- * Normalizes PEM formatted keys by resolving escaped newline characters
- * often introduced when storing multiline secrets in environment variables or key vaults.
- */
-function normalizePemKey(key: string): string {
-  const trimmed = key.trim();
-  if (trimmed.includes('\\n')) {
-    return trimmed.replace(/\\n/g, '\n');
-  }
-  return trimmed;
 }
 
 /**
