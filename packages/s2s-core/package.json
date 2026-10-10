@@ -11,7 +11,7 @@
     "access": "restricted"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
     "test": "jest",
