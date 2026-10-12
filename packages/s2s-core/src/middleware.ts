@@ -121,7 +121,7 @@ export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
 		}
 
 		const [scheme, token] = authHeader.split(" ");
-		if (!scheme || scheme.toLowerCase() !== "bearer" || !token) {
+		if (scheme?.toLowerCase() !== "bearer" || !token) {
 			const errorPayload: S2SErrorResponse = {
 				success: false,
 				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
@@ -139,7 +139,7 @@ export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
 			? rawCallerHeader[0]
 			: rawCallerHeader;
 
-		if (!callerService || !callerService.trim()) {
+		if (!callerService?.trim()) {
 			const errorPayload: S2SErrorResponse = {
 				success: false,
 				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,

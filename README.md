@@ -25,9 +25,9 @@ Instead of copy-pasting utilities or duplicating critical security logic, shared
 
 | Package | Version | Description | Documentation |
 | :--- | :--- | :--- | :--- |
-| [`@spotq/s2s-core`](./packages/s2s-core) | `1.0.0` | Stateless Service-to-Service (S2S) RS256 JWT auth middleware and token issuer | [View README](./packages/s2s-core/README.md) |
+| [`@spotq-org/s2s-core`](./packages/s2s-core) | `1.0.0` | Stateless Service-to-Service (S2S) RS256 JWT auth middleware and token issuer | [View README](./packages/s2s-core/README.md) |
 
-*(Additional shared packages like `@spotq/logger`, `@spotq/errors`, and `@spotq/events` will be listed here as they are added.)*
+*(Additional shared packages like `@spotq-org/logger`, `@spotq-org/errors`, and `@spotq-org/events` will be listed here as they are added.)*
 
 ---
 
@@ -41,7 +41,7 @@ spotq-common/
 ├── .gitignore
 ├── README.md                   # Global monorepo guide & catalog
 └── packages/
-    └── s2s-core/               # @spotq/s2s-core package
+    └── s2s-core/               # @spotq-org/s2s-core package
         ├── package.json        # Package metadata & peer dependencies
         ├── tsconfig.json       # Strict TypeScript compiler options
         ├── jest.config.ts      # TypeScript Jest configuration
@@ -88,7 +88,7 @@ When creating a new shared package (e.g., `packages/logger`):
    mkdir -p packages/<package-name>/src packages/<package-name>/tests
    ```
 2. **Configure `package.json`**:
-   - Scope as `@spotq/<package-name>`.
+   - Scope as `@spotq-org/<package-name>`.
    - Set `"main": "dist/index.js"` and `"types": "dist/index.d.ts"`.
    - Set `"publishConfig": { "access": "restricted" }`.
 3. **Configure `tsconfig.json` & `jest.config.ts`**:

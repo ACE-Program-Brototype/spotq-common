@@ -1,4 +1,4 @@
-# @spotq/s2s-core
+# @spotq-org/s2s-core
 
 > Stateless Service-to-Service (S2S) authentication middleware and token issuer for SpotQ microservices using asymmetric RS256 JWTs.
 
@@ -10,7 +10,7 @@
 
 ## 1. Overview & Architectural Role
 
-`@spotq/s2s-core` provides zero-trust, cryptographically verified inter-service communication across SpotQ distributed microservices:
+`@spotq-org/s2s-core` provides zero-trust, cryptographically verified inter-service communication across SpotQ distributed microservices:
 
 * **User Service (`spotq-user-service`)**
 * **Restaurant Service (`spotq-restaurant-service`)**
@@ -64,7 +64,7 @@ sequenceDiagram
 In your consumer microservice (inside the SpotQ workspace):
 
 ```bash
-pnpm add @spotq/s2s-core
+pnpm add @spotq-org/s2s-core
 ```
 
 Ensure `express` is installed in your application as a peer dependency:
@@ -184,7 +184,7 @@ The caller service reads its local environment variables and injects them into t
 
 ```typescript
 import axios from 'axios';
-import { generateS2SToken, S2SIssuerConfig } from '@spotq/s2s-core';
+import { generateS2SToken, S2SIssuerConfig } from '@spotq-org/s2s-core';
 
 // 1. Read environment variables inside consumer microservice
 const s2sConfig: S2SIssuerConfig = {
@@ -219,7 +219,7 @@ The receiver service mounts `s2sAuthMiddleware` on its protected internal routes
 
 ```typescript
 import express, { Request, Response } from 'express';
-import { s2sAuthMiddleware, S2SVerifierConfig } from '@spotq/s2s-core';
+import { s2sAuthMiddleware, S2SVerifierConfig } from '@spotq-org/s2s-core';
 
 const app = express();
 app.use(express.json());

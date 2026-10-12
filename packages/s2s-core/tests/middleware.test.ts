@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import {
 	S2S_AUTH_ERRORS,

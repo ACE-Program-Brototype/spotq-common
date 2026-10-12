@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import { S2S_CONFIG_DEFAULTS, S2S_ISSUER_ERRORS } from "../src/constants";
 import { generateS2SToken, type S2SIssuerConfig } from "../src/issuer";
