@@ -184,10 +184,10 @@ The caller service reads its local environment variables and injects them into t
 
 ```typescript
 import axios from 'axios';
-import { generateS2SToken, S2SIssuerConfig } from '@spotq-org/s2s-core';
+import { generateToken, TokenIssuerConfig } from '@spotq-org/s2s-core';
 
 // 1. Read environment variables inside consumer microservice
-const s2sConfig: S2SIssuerConfig = {
+const issuerConfig: TokenIssuerConfig = {
   serviceName: process.env.SERVICE_NAME || 'order-service',
   privateKey: process.env.S2S_PRIVATE_KEY!,
 };
@@ -196,13 +196,13 @@ const USER_SERVICE_URL = process.env.USER_SERVICE_URL || 'http://localhost:4001'
 
 export async function fetchUserById(userId: string) {
   // 2. Generate RS256 token targeted at 'user-service' (pure function call)
-  const token = generateS2SToken('user-service', s2sConfig);
+  const token = generateToken('user-service', issuerConfig);
 
   // 3. Attach Bearer token and X-Caller-Service header
   const response = await axios.get(`${USER_SERVICE_URL}/internal/users/${userId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
-      'X-Caller-Service': s2sConfig.serviceName,
+      'X-Caller-Service': issuerConfig.serviceName,
     },
     timeout: 5000,
   });
@@ -219,19 +219,19 @@ The receiver service mounts `s2sAuthMiddleware` on its protected internal routes
 
 ```typescript
 import express, { Request, Response } from 'express';
-import { s2sAuthMiddleware, S2SVerifierConfig } from '@spotq-org/s2s-core';
+import { authMiddleware, TokenVerifierConfig } from '@spotq-org/s2s-core';
 
 const app = express();
 app.use(express.json());
 
 // 1. Read environment variables inside consumer microservice
-const verifierConfig: S2SVerifierConfig = {
+const verifierConfig: TokenVerifierConfig = {
   publicKey: process.env.S2S_PUBLIC_KEY!,
   expectedAudience: process.env.SERVICE_NAME || 'user-service',
 };
 
 // 2. Apply middleware to internal routes
-app.use('/internal', s2sAuthMiddleware(verifierConfig));
+app.use('/internal', authMiddleware(verifierConfig));
 
 // 3. Route handler has fully-typed req.callerService
 app.get('/internal/users/:id', (req: Request, res: Response) => {

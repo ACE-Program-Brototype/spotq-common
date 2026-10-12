@@ -5,13 +5,13 @@ import jwt, {
 	type VerifyOptions,
 } from "jsonwebtoken";
 import {
-	S2S_AUTH_ERRORS,
-	S2S_CONFIG_DEFAULTS,
-	S2S_ERROR_CODES,
-	S2S_HEADERS,
-	S2S_HTTP_STATUS,
-	S2S_VERIFIER_ERRORS,
-	S2SErrorCode,
+	AUTH_ERRORS,
+	type AuthErrorCode,
+	CONFIG_DEFAULTS,
+	ERROR_CODES,
+	HEADERS,
+	HTTP_STATUS,
+	VERIFIER_ERRORS,
 } from "./constants";
 import { normalizePemKey } from "./utils";
 
@@ -26,24 +26,22 @@ declare global {
 	}
 }
 
-export { S2SErrorCode };
-
 /**
- * Standardized machine-readable error payload returned on S2S authentication failure.
+ * Standardized machine-readable error payload returned on authentication failure.
  */
-export interface S2SErrorResponse {
+export interface AuthErrorResponse {
 	success: false;
-	statusCode: typeof S2S_HTTP_STATUS.UNAUTHORIZED;
-	code: S2SErrorCode;
+	statusCode: typeof HTTP_STATUS.UNAUTHORIZED;
+	code: AuthErrorCode;
 	message: string;
 	retryable: false;
 }
 
 /**
- * Configuration contract for S2S token verification.
+ * Configuration contract for token verification.
  * Adheres strictly to stateless design principles (no process.env references).
  */
-export interface S2SVerifierConfig {
+export interface TokenVerifierConfig {
 	/**
 	 * RSA Public Key in PEM format used for signature verification.
 	 */
@@ -62,24 +60,24 @@ export interface S2SVerifierConfig {
 }
 
 /**
- * Decoded payload shape for S2S JWTs.
+ * Decoded payload shape for JWTs.
  */
-export interface S2STokenPayload extends JwtPayload {
+export interface TokenPayload extends JwtPayload {
 	iss?: string;
 	sub?: string;
 	aud?: string | string[];
 }
 
 /**
- * Express middleware factory that enforces Service-to-Service (S2S) authentication
+ * Express middleware factory that enforces Service-to-Service authentication
  * using asymmetric RS256 JWT validation and caller identity header verification.
  *
  * @param config - Configuration containing the public key and expected audience.
  * @returns An Express RequestHandler middleware function.
  */
-export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
+export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 	if (!config) {
-		throw new Error(S2S_VERIFIER_ERRORS.CONFIG_REQUIRED);
+		throw new Error(VERIFIER_ERRORS.CONFIG_REQUIRED);
 	}
 
 	if (
@@ -87,7 +85,7 @@ export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
 		typeof config.publicKey !== "string" ||
 		!config.publicKey.trim()
 	) {
-		throw new Error(S2S_VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
+		throw new Error(VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
 	}
 
 	if (
@@ -95,7 +93,7 @@ export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
 		typeof config.expectedAudience !== "string" ||
 		!config.expectedAudience.trim()
 	) {
-		throw new Error(S2S_VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
+		throw new Error(VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
 	}
 
 	const normalizedPublicKey = normalizePemKey(config.publicKey);
@@ -103,102 +101,102 @@ export function s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler {
 
 	return (req: Request, res: Response, next: NextFunction): void => {
 		// 1. Extract Authorization header
-		const rawAuthHeader = req.headers[S2S_HEADERS.AUTHORIZATION];
+		const rawAuthHeader = req.headers[HEADERS.AUTHORIZATION];
 		const authHeader = Array.isArray(rawAuthHeader)
 			? rawAuthHeader[0]
 			: rawAuthHeader;
 
 		if (!authHeader) {
-			const errorPayload: S2SErrorResponse = {
+			const errorPayload: AuthErrorResponse = {
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MISSING_AUTH_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MISSING_AUTH_HEADER,
 				retryable: false,
 			};
-			res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+			res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 			return;
 		}
 
 		const [scheme, token] = authHeader.split(" ");
 		if (scheme?.toLowerCase() !== "bearer" || !token) {
-			const errorPayload: S2SErrorResponse = {
+			const errorPayload: AuthErrorResponse = {
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MALFORMED_AUTH_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MALFORMED_AUTH_HEADER,
 				retryable: false,
 			};
-			res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+			res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 			return;
 		}
 
 		// 2. Extract X-Caller-Service header
-		const rawCallerHeader = req.headers[S2S_HEADERS.CALLER_SERVICE];
+		const rawCallerHeader = req.headers[HEADERS.CALLER_SERVICE];
 		const callerService = Array.isArray(rawCallerHeader)
 			? rawCallerHeader[0]
 			: rawCallerHeader;
 
 		if (!callerService?.trim()) {
-			const errorPayload: S2SErrorResponse = {
+			const errorPayload: AuthErrorResponse = {
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MISSING_CALLER_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MISSING_CALLER_HEADER,
 				retryable: false,
 			};
-			res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+			res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 			return;
 		}
 
 		// 3. Cryptographically verify token and validate claims
 		const verifyOptions: VerifyOptions = {
-			algorithms: config.algorithms ?? [S2S_CONFIG_DEFAULTS.ALGORITHM],
+			algorithms: config.algorithms ?? [CONFIG_DEFAULTS.ALGORITHM],
 			audience: expectedAudience,
 		};
 
-		let decoded: S2STokenPayload;
+		let decoded: TokenPayload;
 		try {
 			const verified = jwt.verify(token, normalizedPublicKey, verifyOptions);
 			if (typeof verified === "string" || !verified) {
-				const errorPayload: S2SErrorResponse = {
+				const errorPayload: AuthErrorResponse = {
 					success: false,
-					statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-					code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
-					message: S2S_AUTH_ERRORS.INVALID_PAYLOAD,
+					statusCode: HTTP_STATUS.UNAUTHORIZED,
+					code: ERROR_CODES.INVALID_S2S_TOKEN,
+					message: AUTH_ERRORS.INVALID_PAYLOAD,
 					retryable: false,
 				};
-				res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+				res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 				return;
 			}
-			decoded = verified as S2STokenPayload;
+			decoded = verified as TokenPayload;
 		} catch (err: unknown) {
 			const errorMessage =
 				err instanceof Error
 					? err.message
-					: S2S_AUTH_ERRORS.UNKNOWN_VERIFICATION_ERROR;
-			const errorPayload: S2SErrorResponse = {
+					: AUTH_ERRORS.UNKNOWN_VERIFICATION_ERROR;
+			const errorPayload: AuthErrorResponse = {
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
-				message: S2S_AUTH_ERRORS.TOKEN_VERIFICATION_FAILED(errorMessage),
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				message: AUTH_ERRORS.TOKEN_VERIFICATION_FAILED(errorMessage),
 				retryable: false,
 			};
-			res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+			res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 			return;
 		}
 
 		// 4. Verify that caller identity matches token claims (iss / sub)
 		const tokenIssuer = decoded.iss ?? decoded.sub ?? "";
 		if (tokenIssuer !== callerService.trim()) {
-			const errorPayload: S2SErrorResponse = {
+			const errorPayload: AuthErrorResponse = {
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
-				message: S2S_AUTH_ERRORS.CALLER_MISMATCH(callerService, tokenIssuer),
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				message: AUTH_ERRORS.CALLER_MISMATCH(callerService, tokenIssuer),
 				retryable: false,
 			};
-			res.status(S2S_HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
+			res.status(HTTP_STATUS.UNAUTHORIZED).json(errorPayload);
 			return;
 		}
 

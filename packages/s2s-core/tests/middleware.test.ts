@@ -1,13 +1,13 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import {
-	S2S_AUTH_ERRORS,
-	S2S_ERROR_CODES,
-	S2S_HTTP_STATUS,
-	S2S_VERIFIER_ERRORS,
+	AUTH_ERRORS,
+	ERROR_CODES,
+	HTTP_STATUS,
+	VERIFIER_ERRORS,
 } from "../src/constants";
-import { generateS2SToken } from "../src/issuer";
-import { type S2SVerifierConfig, s2sAuthMiddleware } from "../src/middleware";
+import { generateToken } from "../src/issuer";
+import { authMiddleware, type TokenVerifierConfig } from "../src/middleware";
 
 interface MockResponse {
 	statusCode: number;
@@ -44,7 +44,7 @@ const pair2 = crypto.generateKeyPairSync("rsa", {
 });
 const otherPrivateKey = pair2.privateKey;
 
-describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
+describe("Auth Middleware - authMiddleware", () => {
 	let nextFn: NextFunction;
 
 	beforeEach(() => {
@@ -54,36 +54,36 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 	describe("Configuration Validation", () => {
 		it("should throw when config is null or undefined", () => {
 			expect(() =>
-				s2sAuthMiddleware(null as unknown as S2SVerifierConfig),
-			).toThrow(S2S_VERIFIER_ERRORS.CONFIG_REQUIRED);
+				authMiddleware(null as unknown as TokenVerifierConfig),
+			).toThrow(VERIFIER_ERRORS.CONFIG_REQUIRED);
 		});
 
 		it("should throw when publicKey is missing or empty", () => {
 			expect(() =>
-				s2sAuthMiddleware({ publicKey: "", expectedAudience: "user-service" }),
-			).toThrow(S2S_VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
+				authMiddleware({ publicKey: "", expectedAudience: "user-service" }),
+			).toThrow(VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
 
 			expect(() =>
-				s2sAuthMiddleware({
+				authMiddleware({
 					publicKey: "   ",
 					expectedAudience: "user-service",
 				}),
-			).toThrow(S2S_VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
+			).toThrow(VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
 		});
 
 		it("should throw when expectedAudience is missing or empty", () => {
-			expect(() =>
-				s2sAuthMiddleware({ publicKey, expectedAudience: "" }),
-			).toThrow(S2S_VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
+			expect(() => authMiddleware({ publicKey, expectedAudience: "" })).toThrow(
+				VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED,
+			);
 
 			expect(() =>
-				s2sAuthMiddleware({ publicKey, expectedAudience: "   " }),
-			).toThrow(S2S_VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
+				authMiddleware({ publicKey, expectedAudience: "   " }),
+			).toThrow(VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
 		});
 	});
 
 	describe("Header Validation", () => {
-		const middleware = s2sAuthMiddleware({
+		const middleware = authMiddleware({
 			publicKey,
 			expectedAudience: "user-service",
 		});
@@ -94,12 +94,12 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toEqual({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MISSING_AUTH_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MISSING_AUTH_HEADER,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
@@ -113,19 +113,19 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toEqual({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MALFORMED_AUTH_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MALFORMED_AUTH_HEADER,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
 		it("should return 401 UNAUTHORIZED_S2S when X-Caller-Service header is missing", () => {
-			const token = generateS2SToken("user-service", {
+			const token = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
 			});
@@ -136,12 +136,12 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toEqual({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.UNAUTHORIZED_S2S,
-				message: S2S_AUTH_ERRORS.MISSING_CALLER_HEADER,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				message: AUTH_ERRORS.MISSING_CALLER_HEADER,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
@@ -149,14 +149,14 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 	});
 
 	describe("Cryptographic Verification & Claim Checks", () => {
-		const middleware = s2sAuthMiddleware({
+		const middleware = authMiddleware({
 			publicKey,
 			expectedAudience: "user-service",
 		});
 
 		it("should return 401 INVALID_S2S_TOKEN when token signature is invalid", () => {
 			// Sign with a different private key
-			const forgedToken = generateS2SToken("user-service", {
+			const forgedToken = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey: otherPrivateKey,
 			});
@@ -171,18 +171,18 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toMatchObject({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
 		it("should return 401 INVALID_S2S_TOKEN when token has expired", () => {
-			const expiredToken = generateS2SToken("user-service", {
+			const expiredToken = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
 				expiresIn: -1, // Expired immediately
@@ -198,11 +198,11 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toMatchObject({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 		it("should return 401 INVALID_S2S_TOKEN when target audience does not match expectedAudience", () => {
 			// Mint token intended for 'restaurant-service'
-			const tokenForRestaurant = generateS2SToken("restaurant-service", {
+			const tokenForRestaurant = generateToken("restaurant-service", {
 				serviceName: "order-service",
 				privateKey,
 			});
@@ -225,18 +225,18 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toMatchObject({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
 		it("should return 401 INVALID_S2S_TOKEN when X-Caller-Service does not match token issuer", () => {
-			const token = generateS2SToken("user-service", {
+			const token = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
 			});
@@ -251,12 +251,12 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 			middleware(req, res as unknown as Response, nextFn);
 
-			expect(res.status).toHaveBeenCalledWith(S2S_HTTP_STATUS.UNAUTHORIZED);
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
 			expect(res.body).toEqual({
 				success: false,
-				statusCode: S2S_HTTP_STATUS.UNAUTHORIZED,
-				code: S2S_ERROR_CODES.INVALID_S2S_TOKEN,
-				message: S2S_AUTH_ERRORS.CALLER_MISMATCH(
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				message: AUTH_ERRORS.CALLER_MISMATCH(
 					"imposter-service",
 					"order-service",
 				),
@@ -268,12 +268,12 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 
 	describe("Successful Authentication", () => {
 		it("should successfully verify request and populate req.callerService", () => {
-			const middleware = s2sAuthMiddleware({
+			const middleware = authMiddleware({
 				publicKey,
 				expectedAudience: "user-service",
 			});
 
-			const token = generateS2SToken("user-service", {
+			const token = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
 			});
@@ -293,13 +293,13 @@ describe("S2S Auth Middleware - s2sAuthMiddleware", () => {
 		});
 
 		it("should support custom algorithms when configured in verifier", () => {
-			const middleware = s2sAuthMiddleware({
+			const middleware = authMiddleware({
 				publicKey,
 				expectedAudience: "user-service",
 				algorithms: ["RS384"],
 			});
 
-			const token = generateS2SToken("user-service", {
+			const token = generateToken("user-service", {
 				serviceName: "restaurant-service",
 				privateKey,
 				algorithm: "RS384",

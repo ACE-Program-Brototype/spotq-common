@@ -1,12 +1,12 @@
 import jwt, { type Algorithm, type SignOptions } from "jsonwebtoken";
-import { S2S_CONFIG_DEFAULTS, S2S_ISSUER_ERRORS } from "./constants";
+import { CONFIG_DEFAULTS, ISSUER_ERRORS } from "./constants";
 import { normalizePemKey } from "./utils";
 
 /**
- * Configuration contract for generating Service-to-Service (S2S) JWTs.
+ * Configuration contract for generating Service-to-Service JWTs.
  * Adheres strictly to stateless design principles (no process.env references).
  */
-export interface S2SIssuerConfig {
+export interface TokenIssuerConfig {
 	/**
 	 * RSA Private Key in PEM format (PKCS#1 or PKCS#8) used for signature generation.
 	 */
@@ -38,12 +38,12 @@ export interface S2SIssuerConfig {
  * @returns An RS256-signed JWT string.
  * @throws {Error} When parameters or private keys are missing or invalid.
  */
-export function generateS2SToken(
+export function generateToken(
 	targetAudience: string,
-	config: S2SIssuerConfig,
+	config: TokenIssuerConfig,
 ): string {
 	if (!config) {
-		throw new Error(S2S_ISSUER_ERRORS.CONFIG_REQUIRED);
+		throw new Error(ISSUER_ERRORS.CONFIG_REQUIRED);
 	}
 
 	if (
@@ -51,7 +51,7 @@ export function generateS2SToken(
 		typeof config.privateKey !== "string" ||
 		!config.privateKey.trim()
 	) {
-		throw new Error(S2S_ISSUER_ERRORS.PRIVATE_KEY_REQUIRED);
+		throw new Error(ISSUER_ERRORS.PRIVATE_KEY_REQUIRED);
 	}
 
 	if (
@@ -59,7 +59,7 @@ export function generateS2SToken(
 		typeof config.serviceName !== "string" ||
 		!config.serviceName.trim()
 	) {
-		throw new Error(S2S_ISSUER_ERRORS.SERVICE_NAME_REQUIRED);
+		throw new Error(ISSUER_ERRORS.SERVICE_NAME_REQUIRED);
 	}
 
 	if (
@@ -67,14 +67,14 @@ export function generateS2SToken(
 		typeof targetAudience !== "string" ||
 		!targetAudience.trim()
 	) {
-		throw new Error(S2S_ISSUER_ERRORS.TARGET_AUDIENCE_REQUIRED);
+		throw new Error(ISSUER_ERRORS.TARGET_AUDIENCE_REQUIRED);
 	}
 
 	const normalizedPrivateKey = normalizePemKey(config.privateKey);
 
 	const signOptions: SignOptions = {
-		algorithm: config.algorithm ?? S2S_CONFIG_DEFAULTS.ALGORITHM,
-		expiresIn: config.expiresIn ?? S2S_CONFIG_DEFAULTS.TOKEN_EXPIRATION,
+		algorithm: config.algorithm ?? CONFIG_DEFAULTS.ALGORITHM,
+		expiresIn: config.expiresIn ?? CONFIG_DEFAULTS.TOKEN_EXPIRATION,
 		issuer: config.serviceName.trim(),
 		subject: config.serviceName.trim(),
 		audience: targetAudience.trim(),
@@ -86,7 +86,7 @@ export function generateS2SToken(
 		const message =
 			error instanceof Error
 				? error.message
-				: S2S_ISSUER_ERRORS.UNKNOWN_SIGNING_ERROR;
-		throw new Error(S2S_ISSUER_ERRORS.SIGNING_FAILED(message));
+				: ISSUER_ERRORS.UNKNOWN_SIGNING_ERROR;
+		throw new Error(ISSUER_ERRORS.SIGNING_FAILED(message));
 	}
 }
