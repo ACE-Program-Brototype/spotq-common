@@ -51,7 +51,7 @@ sequenceDiagram
    {
      "success": false,
      "statusCode": 401,
-     "code": "UNAUTHORIZED_S2S" | "INVALID_S2S_TOKEN",
+     "code": "UNAUTHORIZED" | "INVALID_TOKEN",
      "message": "Descriptive reason for rejection",
      "retryable": false
    }
@@ -139,24 +139,24 @@ declare global {
 ### C. Error Codes & Contracts
 
 ```typescript
-export const S2S_ERROR_CODES = {
-  UNAUTHORIZED_S2S: 'UNAUTHORIZED_S2S',
-  INVALID_S2S_TOKEN: 'INVALID_S2S_TOKEN',
+export const ERROR_CODES = {
+  UNAUTHORIZED: 'UNAUTHORIZED',
+  INVALID_TOKEN: 'INVALID_TOKEN',
 } as const;
 
-export type S2SErrorCode = (typeof S2S_ERROR_CODES)[keyof typeof S2S_ERROR_CODES];
+export type AuthErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];
 
-export interface S2SErrorResponse {
+export interface AuthErrorResponse {
   success: false;
   statusCode: 401;
-  code: S2SErrorCode;
+  code: AuthErrorCode;
   message: string;
   retryable: false;
 }
 ```
 
-* **`UNAUTHORIZED_S2S`**: Missing `Authorization` header, non-Bearer scheme, or missing `X-Caller-Service` header.
-* **`INVALID_S2S_TOKEN`**: Invalid cryptographic signature, expired token, audience mismatch, or caller service header mismatch.
+* **`UNAUTHORIZED`**: Missing `Authorization` header, non-Bearer scheme, or missing `X-Caller-Service` header.
+* **`INVALID_TOKEN`**: Invalid cryptographic signature, expired token, audience mismatch, or caller service header mismatch.
 
 ---
 

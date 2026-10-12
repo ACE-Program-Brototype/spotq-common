@@ -17,8 +17,8 @@ export const HTTP_STATUS = {
  * Permitted machine-readable error codes for authentication failures.
  */
 export const ERROR_CODES = {
-	UNAUTHORIZED_S2S: "UNAUTHORIZED_S2S" as const,
-	INVALID_S2S_TOKEN: "INVALID_S2S_TOKEN" as const,
+	UNAUTHORIZED: "UNAUTHORIZED" as const,
+	INVALID_TOKEN: "INVALID_TOKEN" as const,
 } as const;
 
 export type AuthErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES];

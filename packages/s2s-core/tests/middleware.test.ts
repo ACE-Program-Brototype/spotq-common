@@ -88,7 +88,7 @@ describe("Auth Middleware - authMiddleware", () => {
 			expectedAudience: "user-service",
 		});
 
-		it("should return 401 UNAUTHORIZED_S2S when Authorization header is missing", () => {
+		it("should return 401 UNAUTHORIZED when Authorization header is missing", () => {
 			const req = { headers: {} } as Request;
 			const res = createMockResponse();
 
@@ -98,14 +98,14 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toEqual({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MISSING_AUTH_HEADER,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
-		it("should return 401 UNAUTHORIZED_S2S when Authorization header is not Bearer schema", () => {
+		it("should return 401 UNAUTHORIZED when Authorization header is not Bearer schema", () => {
 			const req = {
 				headers: { authorization: "Basic dXNlcjpwYXNz" },
 			} as unknown as Request;
@@ -117,14 +117,14 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toEqual({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MALFORMED_AUTH_HEADER,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
-		it("should return 401 UNAUTHORIZED_S2S when X-Caller-Service header is missing", () => {
+		it("should return 401 UNAUTHORIZED when X-Caller-Service header is missing", () => {
 			const token = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
@@ -140,7 +140,7 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toEqual({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MISSING_CALLER_HEADER,
 				retryable: false,
 			});
@@ -154,7 +154,7 @@ describe("Auth Middleware - authMiddleware", () => {
 			expectedAudience: "user-service",
 		});
 
-		it("should return 401 INVALID_S2S_TOKEN when token signature is invalid", () => {
+		it("should return 401 INVALID_TOKEN when token signature is invalid", () => {
 			// Sign with a different private key
 			const forgedToken = generateToken("user-service", {
 				serviceName: "order-service",
@@ -175,13 +175,13 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toMatchObject({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
-		it("should return 401 INVALID_S2S_TOKEN when token has expired", () => {
+		it("should return 401 INVALID_TOKEN when token has expired", () => {
 			const expiredToken = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
@@ -202,13 +202,13 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toMatchObject({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
-		it("should return 401 INVALID_S2S_TOKEN when target audience does not match expectedAudience", () => {
+		it("should return 401 INVALID_TOKEN when target audience does not match expectedAudience", () => {
 			// Mint token intended for 'restaurant-service'
 			const tokenForRestaurant = generateToken("restaurant-service", {
 				serviceName: "order-service",
@@ -229,13 +229,13 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toMatchObject({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				retryable: false,
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
 
-		it("should return 401 INVALID_S2S_TOKEN when X-Caller-Service does not match token issuer", () => {
+		it("should return 401 INVALID_TOKEN when X-Caller-Service does not match token issuer", () => {
 			const token = generateToken("user-service", {
 				serviceName: "order-service",
 				privateKey,
@@ -255,7 +255,7 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(res.body).toEqual({
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				message: AUTH_ERRORS.CALLER_MISMATCH(
 					"imposter-service",
 					"order-service",

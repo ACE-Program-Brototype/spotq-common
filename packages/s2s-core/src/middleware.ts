@@ -110,7 +110,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MISSING_AUTH_HEADER,
 				retryable: false,
 			};
@@ -123,7 +123,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MALFORMED_AUTH_HEADER,
 				retryable: false,
 			};
@@ -141,7 +141,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.UNAUTHORIZED_S2S,
+				code: ERROR_CODES.UNAUTHORIZED,
 				message: AUTH_ERRORS.MISSING_CALLER_HEADER,
 				retryable: false,
 			};
@@ -162,7 +162,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 				const errorPayload: AuthErrorResponse = {
 					success: false,
 					statusCode: HTTP_STATUS.UNAUTHORIZED,
-					code: ERROR_CODES.INVALID_S2S_TOKEN,
+					code: ERROR_CODES.INVALID_TOKEN,
 					message: AUTH_ERRORS.INVALID_PAYLOAD,
 					retryable: false,
 				};
@@ -178,7 +178,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				message: AUTH_ERRORS.TOKEN_VERIFICATION_FAILED(errorMessage),
 				retryable: false,
 			};
@@ -192,7 +192,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
-				code: ERROR_CODES.INVALID_S2S_TOKEN,
+				code: ERROR_CODES.INVALID_TOKEN,
 				message: AUTH_ERRORS.CALLER_MISMATCH(callerService, tokenIssuer),
 				retryable: false,
 			};
