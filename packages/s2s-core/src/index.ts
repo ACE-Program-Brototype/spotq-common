@@ -1,16 +1,12 @@
+export { S2S_ERROR_CODES } from "./constants";
 export {
-  S2SIssuerConfig,
-  generateS2SToken,
-} from './issuer';
-
+	generateS2SToken,
+	S2SIssuerConfig,
+} from "./issuer";
 export {
-  S2SVerifierConfig,
-  S2SErrorCode,
-  S2SErrorResponse,
-  S2STokenPayload,
-  s2sAuthMiddleware,
-} from './middleware';
-
-export {
-  S2S_ERROR_CODES,
-} from './constants';
+	S2SErrorCode,
+	S2SErrorResponse,
+	S2STokenPayload,
+	S2SVerifierConfig,
+	s2sAuthMiddleware,
+} from "./middleware";

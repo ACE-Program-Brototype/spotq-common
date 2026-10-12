@@ -1,15 +1,32 @@
 {
-  "name": "spotq-common-monorepo",
-  "version": "1.0.0",
-  "private": true,
-  "description": "SpotQ shared common packages and utilities monorepo",
-  "scripts": {
-    "build": "pnpm -r run build",
-    "clean": "pnpm -r run clean",
-    "typecheck": "pnpm -r run typecheck",
-    "test": "pnpm -r run test"
-  },
-  "devDependencies": {
-    "typescript": "^5.4.5"
-  }
+	"name": "spotq-common-monorepo",
+	"version": "1.0.0",
+	"private": true,
+	"description": "SpotQ shared common packages and utilities monorepo",
+	"scripts": {
+		"build": "pnpm -r run build",
+		"clean": "pnpm -r run clean",
+		"typecheck": "pnpm -r run typecheck",
+		"test": "pnpm -r run test",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"check": "biome check --write .",
+		"commit": "cz",
+		"prepare": "husky"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.15",
+		"@commitlint/cli": "^21.2.3",
+		"@commitlint/config-conventional": "^21.2.3",
+		"@commitlint/types": "^21.2.3",
+		"commitizen": "^4.3.2",
+		"cz-conventional-changelog": "^3.3.0",
+		"husky": "^9.1.7",
+		"typescript": "^5.4.5"
+	},
+	"config": {
+		"commitizen": {
+			"path": "./node_modules/cz-conventional-changelog"
+		}
+	}
 }

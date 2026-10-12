@@ -6,9 +6,9 @@
  * @returns Normalized PEM key string with actual newline characters.
  */
 export function normalizePemKey(key: string): string {
-  const trimmed = key.trim();
-  if (trimmed.includes('\\n')) {
-    return trimmed.replace(/\\n/g, '\n');
-  }
-  return trimmed;
+	const trimmed = key.trim();
+	if (trimmed.includes("\\n")) {
+		return trimmed.replace(/\\n/g, "\n");
+	}
+	return trimmed;
 }
