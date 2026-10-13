@@ -29,10 +29,10 @@ sequenceDiagram
     participant Caller as Order Service (Caller)
     participant Receiver as User Service (Receiver)
 
-    Caller->>Caller: generateS2SToken('user-service', config)
+    Caller->>Caller: generateToken('user-service', config)
     Note over Caller: Signed with Order Service Private Key (RS256)<br/>exp: 15m, iss: 'order-service', aud: 'user-service'
     Caller->>Receiver: HTTP GET /internal/users/:id<br/>Authorization: Bearer <token><br/>X-Caller-Service: order-service
-    Receiver->>Receiver: s2sAuthMiddleware(config)
+    Receiver->>Receiver: authMiddleware(config)
     Note over Receiver: 1. Validate 'Bearer' & 'X-Caller-Service'<br/>2. Verify RS256 signature using Public Key<br/>3. Verify aud === 'user-service'<br/>4. Verify iss === 'order-service'<br/>5. Populates req.callerService = 'order-service'
     alt Valid Token & Headers
         Receiver-->>Caller: 200 OK (User Data)
@@ -79,12 +79,12 @@ pnpm add express
 
 ### A. Token Issuer (`issuer.ts`)
 
-#### `generateS2SToken(targetAudience: string, config: S2SIssuerConfig): string`
+#### `generateToken(targetAudience: string, config: TokenIssuerConfig): string`
 
 Generates an asymmetric RS256 signed JWT string for invoking downstream microservices.
 
 ```typescript
-export interface S2SIssuerConfig {
+export interface TokenIssuerConfig {
   /** RSA Private Key in PEM format used for signature generation */
   privateKey: string;
 
@@ -103,12 +103,12 @@ export interface S2SIssuerConfig {
 
 ### B. Authentication Middleware (`middleware.ts`)
 
-#### `s2sAuthMiddleware(config: S2SVerifierConfig): RequestHandler`
+#### `authMiddleware(config: TokenVerifierConfig): RequestHandler`
 
 Express middleware factory that enforces RS256 signature validation and caller identity verification.
 
 ```typescript
-export interface S2SVerifierConfig {
+export interface TokenVerifierConfig {
   /** RSA Public Key in PEM format used for signature verification */
   publicKey: string;
 
@@ -180,7 +180,7 @@ Store keys in your service's `.env` or secret manager (escaped newlines `\n` are
 
 ### Step 2: Caller Service Example (`spotq-order-service`)
 
-The caller service reads its local environment variables and injects them into the pure `generateS2SToken` utility:
+The caller service reads its local environment variables and injects them into the pure `generateToken` utility:
 
 ```typescript
 import axios from 'axios';
@@ -215,7 +215,7 @@ export async function fetchUserById(userId: string) {
 
 ### Step 3: Receiver Service Example (`spotq-user-service`)
 
-The receiver service mounts `s2sAuthMiddleware` on its protected internal routes:
+The receiver service mounts `authMiddleware` on its protected internal routes:
 
 ```typescript
 import express, { Request, Response } from 'express';

@@ -7,6 +7,7 @@ import jwt, {
 import {
 	AUTH_ERRORS,
 	type AuthErrorCode,
+	BEARER_TOKEN_REGEX,
 	CONFIG_DEFAULTS,
 	ERROR_CODES,
 	HEADERS,
@@ -118,8 +119,8 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			return;
 		}
 
-		const [scheme, token] = authHeader.split(" ");
-		if (scheme?.toLowerCase() !== "bearer" || !token) {
+		const authMatch = authHeader.match(BEARER_TOKEN_REGEX);
+		if (!authMatch) {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
@@ -131,13 +132,16 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 			return;
 		}
 
+		const token = authMatch[1];
+
 		// 2. Extract X-Caller-Service header
 		const rawCallerHeader = req.headers[HEADERS.CALLER_SERVICE];
-		const callerService = Array.isArray(rawCallerHeader)
+		const rawCaller = Array.isArray(rawCallerHeader)
 			? rawCallerHeader[0]
 			: rawCallerHeader;
+		const callerService = rawCaller?.trim();
 
-		if (!callerService?.trim()) {
+		if (!callerService) {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
@@ -188,7 +192,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 
 		// 4. Verify that caller identity matches token claims (iss / sub)
 		const tokenIssuer = decoded.iss ?? decoded.sub ?? "";
-		if (tokenIssuer !== callerService.trim()) {
+		if (tokenIssuer !== callerService) {
 			const errorPayload: AuthErrorResponse = {
 				success: false,
 				statusCode: HTTP_STATUS.UNAUTHORIZED,
@@ -201,7 +205,7 @@ export function authMiddleware(config: TokenVerifierConfig): RequestHandler {
 		}
 
 		// 5. Populate req.callerService and proceed down the middleware pipeline
-		req.callerService = callerService.trim();
+		req.callerService = callerService;
 		next();
 	};
 }

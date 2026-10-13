@@ -35,6 +35,9 @@ importers:
 
   packages/s2s-core:
     dependencies:
+      '@types/jsonwebtoken':
+        specifier: ^9.0.7
+        version: 9.0.10
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
@@ -45,9 +48,6 @@ importers:
       '@types/jest':
         specifier: ^30.0.0
         version: 30.0.0
-      '@types/jsonwebtoken':
-        specifier: ^9.0.7
-        version: 9.0.10
       '@types/node':
         specifier: ^20.14.0
         version: 20.19.43

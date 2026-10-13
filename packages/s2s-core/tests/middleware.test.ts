@@ -318,5 +318,55 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(nextFn).toHaveBeenCalledTimes(1);
 			expect(req.callerService).toBe("restaurant-service");
 		});
+
+		it("should tolerate leading whitespace and multiple spaces in Bearer token header", () => {
+			const middleware = authMiddleware({
+				publicKey,
+				expectedAudience: "user-service",
+			});
+
+			const token = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey,
+			});
+
+			const req = {
+				headers: {
+					authorization: `   Bearer    ${token}   `,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			middleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
+
+		it("should trim surrounding whitespace from X-Caller-Service header", () => {
+			const middleware = authMiddleware({
+				publicKey,
+				expectedAudience: "user-service",
+			});
+
+			const token = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey,
+			});
+
+			const req = {
+				headers: {
+					authorization: `Bearer ${token}`,
+					"x-caller-service": "   order-service   ",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			middleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
 	});
 });

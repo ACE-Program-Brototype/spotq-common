@@ -32,6 +32,19 @@ export const HEADERS = {
 } as const;
 
 /**
+ * Regular expressions used in authentication and token parsing.
+ */
+export const AUTH_PATTERNS = {
+	/**
+	 * Extracts Bearer tokens from the Authorization header.
+	 * Tolerates flexible leading, trailing, and separating whitespace per RFC 6750.
+	 */
+	BEARER_TOKEN: /^\s*Bearer\s+(\S+)\s*$/i,
+} as const;
+
+export const BEARER_TOKEN_REGEX = AUTH_PATTERNS.BEARER_TOKEN;
+
+/**
  * Issuer validation and runtime error messages.
  */
 export const ISSUER_ERRORS = {
