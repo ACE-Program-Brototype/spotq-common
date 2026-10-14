@@ -91,8 +91,8 @@ export interface TokenIssuerConfig {
   /** Unique identifier of the initiating microservice (e.g. 'order-service') */
   serviceName: string;
 
-  /** Cryptographic algorithm. Defaults to 'RS256' */
-  algorithm?: Algorithm;
+  /** Asymmetric cryptographic algorithm. Only asymmetric algorithms (RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512) are permitted. Defaults to 'RS256' */
+  algorithm?: SupportedAlgorithm;
 
   /** Token lifetime expression (e.g. '15m', '1h', or numeric seconds). Defaults to '15m' */
   expiresIn?: SignOptions['expiresIn'];
@@ -108,15 +108,23 @@ export interface TokenIssuerConfig {
 Express middleware factory that enforces RS256 signature validation and caller identity verification.
 
 ```typescript
+export type PublicKeyResolver = (callerService: string) => string | undefined | null;
+
 export interface TokenVerifierConfig {
-  /** RSA Public Key in PEM format used for signature verification */
-  publicKey: string;
+  /** RSA Public Key in PEM format, a map of service public keys, or a dynamic resolver */
+  publicKey?: string | Record<string, string> | PublicKeyResolver;
+
+  /** Map of caller service names to their respective RSA Public Keys in PEM format for per-service verification */
+  publicKeys?: Record<string, string>;
+
+  /** Dynamic resolver function returning the RSA Public Key for a given caller service */
+  getPublicKey?: PublicKeyResolver;
 
   /** Expected audience identifier matching this recipient service (e.g. 'user-service') */
   expectedAudience: string;
 
-  /** Permitted algorithms for verification. Defaults to ['RS256'] */
-  algorithms?: Algorithm[];
+  /** Permitted asymmetric algorithms for verification. Defaults to ['RS256'] */
+  algorithms?: SupportedAlgorithm[];
 }
 ```
 
@@ -224,10 +232,14 @@ import { authMiddleware, TokenVerifierConfig } from '@spotq-org/s2s-core';
 const app = express();
 app.use(express.json());
 
-// 1. Read environment variables inside consumer microservice
+// 1. Configure per-service public keys for authorized callers
 const verifierConfig: TokenVerifierConfig = {
-  publicKey: process.env.S2S_PUBLIC_KEY!,
   expectedAudience: process.env.SERVICE_NAME || 'user-service',
+  publicKeys: {
+    'order-service': process.env.ORDER_SERVICE_PUBLIC_KEY!,
+    'restaurant-service': process.env.RESTAURANT_SERVICE_PUBLIC_KEY!,
+    'queue-service': process.env.QUEUE_SERVICE_PUBLIC_KEY!,
+  },
 };
 
 // 2. Apply middleware to internal routes

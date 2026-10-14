@@ -1,9 +1,11 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import {
 	AUTH_ERRORS,
 	ERROR_CODES,
 	HTTP_STATUS,
+	type SupportedAlgorithm,
 	VERIFIER_ERRORS,
 } from "../src/constants";
 import { generateToken } from "../src/issuer";
@@ -79,6 +81,40 @@ describe("Auth Middleware - authMiddleware", () => {
 			expect(() =>
 				authMiddleware({ publicKey, expectedAudience: "   " }),
 			).toThrow(VERIFIER_ERRORS.EXPECTED_AUDIENCE_REQUIRED);
+		});
+
+		it("should throw when publicKeys is an empty object", () => {
+			expect(() =>
+				authMiddleware({ publicKeys: {}, expectedAudience: "user-service" }),
+			).toThrow(VERIFIER_ERRORS.PUBLIC_KEY_REQUIRED);
+		});
+
+		it("should throw when algorithms list is empty", () => {
+			expect(() =>
+				authMiddleware({
+					publicKey,
+					expectedAudience: "user-service",
+					algorithms: [],
+				}),
+			).toThrow(VERIFIER_ERRORS.EMPTY_ALGORITHMS);
+		});
+
+		it("should throw when algorithms contains symmetric or none algorithms", () => {
+			expect(() =>
+				authMiddleware({
+					publicKey,
+					expectedAudience: "user-service",
+					algorithms: ["HS256" as unknown as SupportedAlgorithm],
+				}),
+			).toThrow(VERIFIER_ERRORS.INVALID_ALGORITHM("HS256"));
+
+			expect(() =>
+				authMiddleware({
+					publicKey,
+					expectedAudience: "user-service",
+					algorithms: ["none" as unknown as SupportedAlgorithm],
+				}),
+			).toThrow(VERIFIER_ERRORS.INVALID_ALGORITHM("none"));
 		});
 	});
 
@@ -264,6 +300,110 @@ describe("Auth Middleware - authMiddleware", () => {
 			});
 			expect(nextFn).not.toHaveBeenCalled();
 		});
+
+		it("should fallback to decoded.sub when decoded.iss is an empty string", () => {
+			const tokenWithEmptyIss = jwt.sign(
+				{ iss: "", sub: "order-service", aud: "user-service" },
+				privateKey,
+				{ algorithm: "RS256", expiresIn: "15m" },
+			);
+
+			const req = {
+				headers: {
+					authorization: `Bearer ${tokenWithEmptyIss}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			middleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
+
+		it("should fallback to decoded.sub when decoded.iss is whitespace-only", () => {
+			const tokenWithWhitespaceIss = jwt.sign(
+				{ iss: "   ", sub: "order-service", aud: "user-service" },
+				privateKey,
+				{ algorithm: "RS256", expiresIn: "15m" },
+			);
+
+			const req = {
+				headers: {
+					authorization: `Bearer ${tokenWithWhitespaceIss}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			middleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
+
+		it("should return 401 INVALID_TOKEN when both iss and sub are empty strings", () => {
+			const tokenEmptyIssSub = jwt.sign(
+				{ iss: "", sub: "", aud: "user-service" },
+				privateKey,
+				{ algorithm: "RS256", expiresIn: "15m" },
+			);
+
+			const req = {
+				headers: {
+					authorization: `Bearer ${tokenEmptyIssSub}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			middleware(req, res as unknown as Response, nextFn);
+
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
+			expect(res.body).toEqual({
+				success: false,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.INVALID_TOKEN,
+				message: AUTH_ERRORS.CALLER_MISMATCH("order-service", ""),
+				retryable: false,
+			});
+			expect(nextFn).not.toHaveBeenCalled();
+		});
+
+		it("should return 401 UNAUTHORIZED when caller service has no configured public key", () => {
+			const multiKeyMiddleware = authMiddleware({
+				expectedAudience: "user-service",
+				publicKeys: {
+					"order-service": publicKey,
+				},
+			});
+
+			const token = generateToken("user-service", {
+				serviceName: "restaurant-service",
+				privateKey,
+			});
+
+			const req = {
+				headers: {
+					authorization: `Bearer ${token}`,
+					"x-caller-service": "restaurant-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			multiKeyMiddleware(req, res as unknown as Response, nextFn);
+
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
+			expect(res.body).toEqual({
+				success: false,
+				statusCode: HTTP_STATUS.UNAUTHORIZED,
+				code: ERROR_CODES.UNAUTHORIZED,
+				message: AUTH_ERRORS.PUBLIC_KEY_NOT_FOUND("restaurant-service"),
+				retryable: false,
+			});
+			expect(nextFn).not.toHaveBeenCalled();
+		});
 	});
 
 	describe("Successful Authentication", () => {
@@ -364,6 +504,133 @@ describe("Auth Middleware - authMiddleware", () => {
 			const res = createMockResponse();
 
 			middleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
+	});
+
+	describe("Per-Service Asymmetric Key Verification", () => {
+		const orderKeyPair = pair1;
+		const restaurantKeyPair = pair2;
+
+		const multiServiceMiddleware = authMiddleware({
+			expectedAudience: "user-service",
+			publicKeys: {
+				"order-service": orderKeyPair.publicKey,
+				"restaurant-service": restaurantKeyPair.publicKey,
+			},
+		});
+
+		it("should verify requests from multiple caller services using their respective public keys", () => {
+			// 1. Request from order-service signed with order-service private key
+			const orderToken = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey: orderKeyPair.privateKey,
+			});
+			const orderReq = {
+				headers: {
+					authorization: `Bearer ${orderToken}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const orderRes = createMockResponse();
+			multiServiceMiddleware(orderReq, orderRes as unknown as Response, nextFn);
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(orderReq.callerService).toBe("order-service");
+
+			// 2. Request from restaurant-service signed with restaurant-service private key
+			const restaurantToken = generateToken("user-service", {
+				serviceName: "restaurant-service",
+				privateKey: restaurantKeyPair.privateKey,
+			});
+			const restaurantReq = {
+				headers: {
+					authorization: `Bearer ${restaurantToken}`,
+					"x-caller-service": "restaurant-service",
+				},
+			} as unknown as Request;
+			const restaurantRes = createMockResponse();
+			multiServiceMiddleware(
+				restaurantReq,
+				restaurantRes as unknown as Response,
+				nextFn,
+			);
+			expect(nextFn).toHaveBeenCalledTimes(2);
+			expect(restaurantReq.callerService).toBe("restaurant-service");
+		});
+
+		it("should reject when service A signs token but X-Caller-Service claims service B", () => {
+			// Token signed by restaurant-service, but header claims order-service
+			const imposterToken = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey: restaurantKeyPair.privateKey, // Signed with restaurant's key!
+			});
+			const req = {
+				headers: {
+					authorization: `Bearer ${imposterToken}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			multiServiceMiddleware(req, res as unknown as Response, nextFn);
+
+			expect(res.status).toHaveBeenCalledWith(HTTP_STATUS.UNAUTHORIZED);
+			expect(res.body).toMatchObject({
+				code: ERROR_CODES.INVALID_TOKEN,
+			});
+			expect(nextFn).not.toHaveBeenCalled();
+		});
+
+		it("should support dynamic getPublicKey resolver", () => {
+			const dynamicMiddleware = authMiddleware({
+				expectedAudience: "user-service",
+				getPublicKey: (caller) => {
+					if (caller === "order-service") return orderKeyPair.publicKey;
+					return undefined;
+				},
+			});
+
+			const token = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey: orderKeyPair.privateKey,
+			});
+			const req = {
+				headers: {
+					authorization: `Bearer ${token}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			dynamicMiddleware(req, res as unknown as Response, nextFn);
+
+			expect(nextFn).toHaveBeenCalledTimes(1);
+			expect(req.callerService).toBe("order-service");
+		});
+
+		it("should support publicKey provided as an object mapping", () => {
+			const mapMiddleware = authMiddleware({
+				expectedAudience: "user-service",
+				publicKey: {
+					"order-service": orderKeyPair.publicKey,
+				},
+			});
+
+			const token = generateToken("user-service", {
+				serviceName: "order-service",
+				privateKey: orderKeyPair.privateKey,
+			});
+			const req = {
+				headers: {
+					authorization: `Bearer ${token}`,
+					"x-caller-service": "order-service",
+				},
+			} as unknown as Request;
+			const res = createMockResponse();
+
+			mapMiddleware(req, res as unknown as Response, nextFn);
 
 			expect(nextFn).toHaveBeenCalledTimes(1);
 			expect(req.callerService).toBe("order-service");

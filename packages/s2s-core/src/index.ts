@@ -1,4 +1,5 @@
 export {
+	type AsymmetricAlgorithm,
 	AUTH_ERRORS,
 	type AuthErrorCode,
 	CONFIG_DEFAULTS,
@@ -6,6 +7,8 @@ export {
 	HEADERS,
 	HTTP_STATUS,
 	ISSUER_ERRORS,
+	SUPPORTED_ASYMMETRIC_ALGORITHMS,
+	type SupportedAlgorithm,
 	VERIFIER_ERRORS,
 } from "./constants";
 
@@ -17,6 +20,7 @@ export {
 export {
 	type AuthErrorResponse,
 	authMiddleware,
+	type PublicKeyResolver,
 	type TokenPayload,
 	type TokenVerifierConfig,
 } from "./middleware";

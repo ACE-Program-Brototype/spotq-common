@@ -1,5 +1,10 @@
-import jwt, { type Algorithm, type SignOptions } from "jsonwebtoken";
-import { CONFIG_DEFAULTS, ISSUER_ERRORS } from "./constants";
+import jwt, { type SignOptions } from "jsonwebtoken";
+import {
+	CONFIG_DEFAULTS,
+	ISSUER_ERRORS,
+	SUPPORTED_ASYMMETRIC_ALGORITHMS,
+	type SupportedAlgorithm,
+} from "./constants";
 import { normalizePemKey } from "./utils";
 
 /**
@@ -19,9 +24,10 @@ export interface TokenIssuerConfig {
 
 	/**
 	 * Asymmetric cryptographic signing algorithm.
+	 * Only asymmetric algorithms (RS256, RS384, RS512, PS256, PS384, PS512, ES256, ES384, ES512) are permitted.
 	 * Defaults to 'RS256'.
 	 */
-	algorithm?: Algorithm;
+	algorithm?: SupportedAlgorithm;
 
 	/**
 	 * Token lifetime expression (e.g., '15m', '1h', or numeric seconds).
@@ -68,6 +74,18 @@ export function generateToken(
 		!targetAudience.trim()
 	) {
 		throw new Error(ISSUER_ERRORS.TARGET_AUDIENCE_REQUIRED);
+	}
+
+	if (config.algorithm !== undefined) {
+		if (
+			!SUPPORTED_ASYMMETRIC_ALGORITHMS.includes(
+				config.algorithm as SupportedAlgorithm,
+			)
+		) {
+			throw new Error(
+				ISSUER_ERRORS.INVALID_ALGORITHM(String(config.algorithm)),
+			);
+		}
 	}
 
 	const normalizedPrivateKey = normalizePemKey(config.privateKey);

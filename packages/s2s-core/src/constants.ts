@@ -1,8 +1,29 @@
 /**
+ * Permitted asymmetric cryptographic signing and verification algorithms.
+ * Symmetric (HMAC) algorithms (e.g., 'HS256') and 'none' are strictly forbidden.
+ */
+export const SUPPORTED_ASYMMETRIC_ALGORITHMS = [
+	"RS256",
+	"RS384",
+	"RS512",
+	"PS256",
+	"PS384",
+	"PS512",
+	"ES256",
+	"ES384",
+	"ES512",
+] as const;
+
+export type SupportedAlgorithm =
+	(typeof SUPPORTED_ASYMMETRIC_ALGORITHMS)[number];
+
+export type AsymmetricAlgorithm = SupportedAlgorithm;
+
+/**
  * Cryptographic and token configuration defaults.
  */
 export const CONFIG_DEFAULTS = {
-	ALGORITHM: "RS256" as const,
+	ALGORITHM: "RS256" as SupportedAlgorithm,
 	TOKEN_EXPIRATION: "15m" as const,
 } as const;
 
@@ -55,6 +76,8 @@ export const ISSUER_ERRORS = {
 		"Issuer Error: Service name is required and cannot be empty.",
 	TARGET_AUDIENCE_REQUIRED:
 		"Issuer Error: Target audience is required and cannot be empty.",
+	INVALID_ALGORITHM: (algorithm: string) =>
+		`Issuer Error: Algorithm '${algorithm}' is not a supported asymmetric algorithm. Permitted algorithms: ${SUPPORTED_ASYMMETRIC_ALGORITHMS.join(", ")}.`,
 	UNKNOWN_SIGNING_ERROR: "Unknown cryptographic signing error",
 	SIGNING_FAILED: (reason: string) =>
 		`Issuer Error: Failed to sign token: ${reason}`,
@@ -69,6 +92,10 @@ export const VERIFIER_ERRORS = {
 		"Verifier Error: Public key is required and cannot be empty.",
 	EXPECTED_AUDIENCE_REQUIRED:
 		"Verifier Error: Expected audience is required and cannot be empty.",
+	INVALID_ALGORITHM: (algorithm: string) =>
+		`Verifier Error: Algorithm '${algorithm}' is not a supported asymmetric algorithm. Permitted algorithms: ${SUPPORTED_ASYMMETRIC_ALGORITHMS.join(", ")}.`,
+	EMPTY_ALGORITHMS:
+		"Verifier Error: Permitted algorithms list cannot be empty.",
 } as const;
 
 /**
@@ -79,6 +106,8 @@ export const AUTH_ERRORS = {
 	MALFORMED_AUTH_HEADER:
 		"Malformed Authorization header. Format must be 'Bearer <token>'.",
 	MISSING_CALLER_HEADER: "Missing 'X-Caller-Service' header.",
+	PUBLIC_KEY_NOT_FOUND: (caller: string) =>
+		`No public key found for caller service '${caller}'.`,
 	INVALID_PAYLOAD: "Invalid token payload.",
 	UNKNOWN_VERIFICATION_ERROR: "Cryptographic verification failed.",
 	TOKEN_VERIFICATION_FAILED: (reason: string) =>

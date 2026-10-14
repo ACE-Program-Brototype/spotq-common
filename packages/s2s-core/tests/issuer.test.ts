@@ -1,6 +1,10 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
-import { CONFIG_DEFAULTS, ISSUER_ERRORS } from "../src/constants";
+import {
+	CONFIG_DEFAULTS,
+	ISSUER_ERRORS,
+	type SupportedAlgorithm,
+} from "../src/constants";
 import { generateToken, type TokenIssuerConfig } from "../src/issuer";
 
 describe("Issuer Utility - generateToken", () => {
@@ -68,6 +72,26 @@ describe("Issuer Utility - generateToken", () => {
 						"-----BEGIN RSA PRIVATE KEY-----\nINVALID\n-----END RSA PRIVATE KEY-----",
 				}),
 			).toThrow(/Failed to sign token:/);
+		});
+
+		it("should throw when a symmetric algorithm is passed", () => {
+			expect(() =>
+				generateToken("user-service", {
+					serviceName: "order-service",
+					privateKey,
+					algorithm: "HS256" as unknown as SupportedAlgorithm,
+				}),
+			).toThrow(ISSUER_ERRORS.INVALID_ALGORITHM("HS256"));
+		});
+
+		it("should throw when 'none' algorithm is passed", () => {
+			expect(() =>
+				generateToken("user-service", {
+					serviceName: "order-service",
+					privateKey,
+					algorithm: "none" as unknown as SupportedAlgorithm,
+				}),
+			).toThrow(ISSUER_ERRORS.INVALID_ALGORITHM("none"));
 		});
 	});
 
