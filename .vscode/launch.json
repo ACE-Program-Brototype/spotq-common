@@ -1,0 +1,24 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Debug Current Jest Test File",
+			"program": "${workspaceFolder}/packages/s2s-core/node_modules/jest/bin/jest.js",
+			"args": ["--runInBand", "${file}"],
+			"cwd": "${workspaceFolder}/packages/s2s-core",
+			"console": "integratedTerminal",
+			"internalConsoleOptions": "neverOpen"
+		},
+		{
+			"type": "node",
+			"request": "launch",
+			"name": "Debug All s2s-core Tests",
+			"program": "${workspaceFolder}/packages/s2s-core/node_modules/jest/bin/jest.js",
+			"args": ["--runInBand"],
+			"cwd": "${workspaceFolder}/packages/s2s-core",
+			"console": "integratedTerminal"
+		}
+	]
+}
