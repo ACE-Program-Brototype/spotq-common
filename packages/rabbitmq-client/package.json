@@ -30,7 +30,6 @@
 		"lint": "biome check .",
 		"format": "biome format --write .",
 		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
-		"test:live": "node --experimental-strip-types tests/test-live-dlq.ts",
 		"prepublishOnly": "pnpm run build",
 		"publish:npm": "./scripts/publish.sh",
 		"version:patch": "./scripts/version.sh patch",
