@@ -6,13 +6,40 @@ import {
 	it,
 	jest,
 } from "@jest/globals";
+import type { ChannelModel, ConsumeMessage } from "amqplib";
 import amqp from "amqplib";
 import { RabbitMQClient } from "../src/client.js";
 import type { ILogger, MessageHandler } from "../src/types.js";
 
+type ConsumerCallback = (msg: unknown) => Promise<void>;
+
+type MockChannel = {
+	prefetch: jest.Mock;
+	assertExchange: jest.Mock;
+	assertQueue: jest.Mock;
+	bindQueue: jest.Mock;
+	sendToQueue: jest.Mock;
+	consume: jest.Mock<
+		(
+			queue: string,
+			onMessage: ConsumerCallback,
+		) => Promise<{ consumerTag: string }>
+	>;
+	ack: jest.Mock;
+	nack: jest.Mock;
+	close: jest.Mock;
+	on: jest.Mock;
+};
+
+type MockConnection = {
+	createChannel: jest.Mock;
+	close: jest.Mock;
+	on: jest.Mock;
+};
+
 describe("RabbitMQClient", () => {
-	let mockConnection: any;
-	let mockChannel: any;
+	let mockConnection: MockConnection;
+	let mockChannel: MockChannel;
 	let mockLogger: ILogger;
 
 	beforeEach(() => {
@@ -35,7 +62,9 @@ describe("RabbitMQClient", () => {
 			on: jest.fn(),
 		};
 
-		jest.spyOn(amqp, "connect").mockResolvedValue(mockConnection as any);
+		jest
+			.spyOn(amqp, "connect")
+			.mockResolvedValue(mockConnection as unknown as ChannelModel);
 
 		mockLogger = {
 			info: jest.fn(),
@@ -216,22 +245,23 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {});
 			await client.consumeFromQueue("orders", handler);
 
 			// Extract the consumer callback that was passed to channel.consume
-			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const consumerCallback = mockChannel.consume.mock.calls[0]?.[1];
+			expect(consumerCallback).toBeDefined();
 
 			const fakeMessage = {
 				content: Buffer.from(JSON.stringify({ orderId: "123" })),
 			};
 
 			// Simulate receiving a message
-			await consumerCallback(fakeMessage);
+			await consumerCallback?.(fakeMessage);
 
 			expect(handler).toHaveBeenCalledWith(
 				{ orderId: "123" },
-				fakeMessage as any,
+				fakeMessage as unknown as ConsumeMessage,
 			);
 			expect(mockChannel.ack).toHaveBeenCalledWith(fakeMessage);
 			expect(mockChannel.nack).not.toHaveBeenCalled();
@@ -246,18 +276,19 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {
 				throw new Error("Database down");
 			});
 			await client.consumeFromQueue("orders", handler);
 
-			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const consumerCallback = mockChannel.consume.mock.calls[0]?.[1];
+			expect(consumerCallback).toBeDefined();
 			const fakeMessage = {
 				content: Buffer.from(JSON.stringify({ orderId: "failed-order" })),
 			};
 
 			// Simulate receiving a message that fails in handler
-			await consumerCallback(fakeMessage);
+			await consumerCallback?.(fakeMessage);
 
 			expect(handler).toHaveBeenCalled();
 			expect(mockChannel.ack).not.toHaveBeenCalled();
@@ -278,17 +309,18 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {
 				throw new Error("Transient error");
 			});
 			await client.consumeFromQueue("orders", handler, {
 				requeueOnFailure: true,
 			});
 
-			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const consumerCallback = mockChannel.consume.mock.calls[0]?.[1];
+			expect(consumerCallback).toBeDefined();
 			const fakeMessage = { content: Buffer.from(JSON.stringify({ id: 1 })) };
 
-			await consumerCallback(fakeMessage);
+			await consumerCallback?.(fakeMessage);
 
 			expect(mockChannel.nack).toHaveBeenCalledWith(fakeMessage, false, true);
 		});
@@ -302,17 +334,18 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {});
 			await client.consumeFromQueue("orders", handler, {
 				requeueOnFailure: true,
 			});
 
-			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const consumerCallback = mockChannel.consume.mock.calls[0]?.[1];
+			expect(consumerCallback).toBeDefined();
 			const malformedMessage = {
 				content: Buffer.from("{ bad json: not valid ..."),
 			};
 
-			await consumerCallback(malformedMessage);
+			await consumerCallback?.(malformedMessage);
 
 			// Handler should never be invoked for malformed JSON
 			expect(handler).not.toHaveBeenCalled();
@@ -338,13 +371,14 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {});
 			await client.consumeFromQueue("orders", handler, { noAck: true });
 
-			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const consumerCallback = mockChannel.consume.mock.calls[0]?.[1];
+			expect(consumerCallback).toBeDefined();
 			const fakeMessage = { content: Buffer.from(JSON.stringify({ id: 1 })) };
 
-			await consumerCallback(fakeMessage);
+			await consumerCallback?.(fakeMessage);
 
 			expect(handler).toHaveBeenCalled();
 			expect(mockChannel.ack).not.toHaveBeenCalled();
@@ -385,18 +419,20 @@ describe("RabbitMQClient", () => {
 
 			await client.connect();
 
-			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			const handler = jest.fn<MessageHandler<unknown>>(async () => {});
 			await client.consumeFromQueue("orders", handler);
 
 			// Extract connection 'close' listener
-			const closeListener = mockConnection.on.mock.calls.find(
-				(call: any[]) => call[0] === "close",
+			const closeListener = (
+				mockConnection.on.mock.calls.find(
+					(call) => Array.isArray(call) && call[0] === "close",
+				) as [string, () => void] | undefined
 			)?.[1];
 
 			expect(closeListener).toBeDefined();
 
 			// Simulate unexpected connection drop
-			closeListener();
+			closeListener?.();
 			expect(client.isConnected()).toBe(false);
 
 			// Fast-forward 5 seconds to trigger reconnect timer
@@ -422,8 +458,10 @@ describe("RabbitMQClient", () => {
 			await client.connect();
 			await client.close();
 
-			const closeListener = mockConnection.on.mock.calls.find(
-				(call: any[]) => call[0] === "close",
+			const closeListener = (
+				mockConnection.on.mock.calls.find(
+					(call) => Array.isArray(call) && call[0] === "close",
+				) as [string, () => void] | undefined
 			)?.[1];
 
 			if (closeListener) {
