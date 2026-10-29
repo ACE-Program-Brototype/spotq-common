@@ -211,7 +211,7 @@ export class RabbitMQClient {
 				`[${this.serviceName}] Failed to publish message to queue "${queue}":`,
 				error,
 			);
-			return false;
+			throw error;
 		}
 	}
 

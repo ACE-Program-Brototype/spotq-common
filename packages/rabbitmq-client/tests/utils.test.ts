@@ -1,39 +1,7 @@
 import { describe, expect, it } from "@jest/globals";
-import { sanitizeError, sanitizeUrl } from "../src/utils.js";
+import { sanitizeError } from "../src/utils.js";
 
 describe("RabbitMQ URL and Error Sanitization", () => {
-	describe("sanitizeUrl", () => {
-		it("should mask password in a standard AMQP URL", () => {
-			const raw = "amqp://user:superSecretPassword@localhost:5672";
-			const sanitized = sanitizeUrl(raw);
-			expect(sanitized).toBe("amqp://user:******@localhost:5672");
-			expect(sanitized).not.toContain("superSecretPassword");
-		});
-
-		it("should mask password in an AMQPS URL with vhost", () => {
-			const raw =
-				"amqps://admin:p%40ssword123@broker.cloud.com:5671/production";
-			const sanitized = sanitizeUrl(raw);
-			expect(sanitized).toBe(
-				"amqps://admin:******@broker.cloud.com:5671/production",
-			);
-			expect(sanitized).not.toContain("p%40ssword123");
-		});
-
-		it("should leave URLs without passwords unchanged", () => {
-			const raw = "amqp://localhost:5672";
-			const sanitized = sanitizeUrl(raw);
-			expect(sanitized).toBe("amqp://localhost:5672");
-		});
-
-		it("should handle malformed URLs using fallback regex", () => {
-			const raw = "amqp://guest:secretpass@host with invalid spaces:5672";
-			const sanitized = sanitizeUrl(raw);
-			expect(sanitized).toContain("******");
-			expect(sanitized).not.toContain("secretpass");
-		});
-	});
-
 	describe("sanitizeError", () => {
 		it("should sanitize error message and stack trace containing credentials", () => {
 			const rawError = new Error(

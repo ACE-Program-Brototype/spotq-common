@@ -32,11 +32,19 @@ await rmq.connect();
 ### Publish a Message
 Sends an object as a JSON message to a queue. If the queue does not exist, it is created automatically.
 
+Always wrap `publishToQueue` in a `try...catch` block so your application can handle network disconnects, channel unavailability, or serialization errors gracefully:
+
 ```typescript
-await rmq.publishToQueue("order_created", {
-  orderId: "ord_101",
-  amount: 450,
-});
+try {
+  await rmq.publishToQueue("order_created", {
+    orderId: "ord_101",
+    amount: 450,
+  });
+  console.log("Message published successfully");
+} catch (error) {
+  console.error("Failed to publish message:", error);
+  // Handle failure (e.g., return HTTP 500, alert, or save to fallback store)
+}
 ```
 
 ### Consume Messages

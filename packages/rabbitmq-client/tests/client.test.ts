@@ -192,15 +192,16 @@ describe("RabbitMQClient", () => {
 			expect(mockChannel.sendToQueue).toHaveBeenCalledTimes(2);
 		});
 
-		it("should return false if channel is not connected", async () => {
+		it("should throw error if channel is not connected", async () => {
 			const client = new RabbitMQClient({
 				url: "amqp://localhost:5672",
 				serviceName: "test-service",
 				logger: mockLogger,
 			});
 
-			const result = await client.publishToQueue("orders", { test: true });
-			expect(result).toBe(false);
+			await expect(
+				client.publishToQueue("orders", { test: true }),
+			).rejects.toThrow("RabbitMQ channel is not available");
 			expect(mockLogger.error).toHaveBeenCalled();
 		});
 	});
