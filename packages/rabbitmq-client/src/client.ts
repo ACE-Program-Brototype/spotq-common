@@ -30,9 +30,6 @@ export class RabbitMQClient {
 		string,
 		{ handler: MessageHandler<unknown>; options?: ConsumeOptions | undefined }
 	>();
-	private readonly consumerTags = new Set<string>();
-	private inFlightMessages = 0;
-	private drainResolvers: (() => void)[] = [];
 	private isConnecting = false;
 	private isExplicitClose = false;
 	private reconnectTimer: NodeJS.Timeout | null = null;
@@ -241,61 +238,47 @@ export class RabbitMQClient {
 		const noAck = options?.noAck ?? false;
 		const requeueOnFailure = options?.requeueOnFailure ?? false;
 
-		const { consumerTag } = await this.channel.consume(
+		await this.channel.consume(
 			queue,
 			async (msg: ConsumeMessage | null) => {
 				if (!msg) {
 					return;
 				}
 
-				this.inFlightMessages++;
+				let content: T;
 				try {
-					let content: T;
-					try {
-						content = JSON.parse(msg.content.toString()) as T;
-					} catch (parseError) {
-						this.logger.error(
-							`[${this.serviceName}] Malformed JSON received from queue "${queue}". Routing to DLQ:`,
-							parseError,
-						);
+					content = JSON.parse(msg.content.toString()) as T;
+				} catch (parseError) {
+					this.logger.error(
+						`[${this.serviceName}] Malformed JSON received from queue "${queue}". Routing to DLQ:`,
+						parseError,
+					);
 
-						if (!noAck && this.channel) {
-							this.channel.nack(msg, false, false);
-						}
-						return;
+					if (!noAck && this.channel) {
+						this.channel.nack(msg, false, false);
 					}
+					return;
+				}
 
-					try {
-						await handler(content, msg);
+				try {
+					await handler(content, msg);
 
-						if (!noAck && this.channel) {
-							this.channel.ack(msg);
-						}
-					} catch (error) {
-						this.logger.error(
-							`[${this.serviceName}] Error processing message from queue "${queue}":`,
-							error,
-						);
-
-						if (!noAck && this.channel) {
-							this.channel.nack(msg, false, requeueOnFailure);
-						}
+					if (!noAck && this.channel) {
+						this.channel.ack(msg);
 					}
-				} finally {
-					this.inFlightMessages--;
-					if (this.inFlightMessages === 0 && this.drainResolvers.length > 0) {
-						const resolvers = [...this.drainResolvers];
-						this.drainResolvers = [];
-						for (const resolve of resolvers) {
-							resolve();
-						}
+				} catch (error) {
+					this.logger.error(
+						`[${this.serviceName}] Error processing message from queue "${queue}":`,
+						error,
+					);
+
+					if (!noAck && this.channel) {
+						this.channel.nack(msg, false, requeueOnFailure);
 					}
 				}
 			},
 			{ noAck },
 		);
-
-		this.consumerTags.add(consumerTag);
 
 		this.logger.info(`[${this.serviceName}] Subscribed to queue "${queue}"`);
 	}
@@ -326,7 +309,6 @@ export class RabbitMQClient {
 			try {
 				await this.connect();
 
-				this.consumerTags.clear();
 				for (const [
 					queue,
 					{ handler, options },
@@ -347,7 +329,7 @@ export class RabbitMQClient {
 		}, 5000);
 	}
 
-	public async close(drainTimeoutMs = 10000): Promise<void> {
+	public async close(): Promise<void> {
 		try {
 			this.isExplicitClose = true;
 			if (this.reconnectTimer) {
@@ -356,48 +338,6 @@ export class RabbitMQClient {
 			}
 			this.activeConsumers.clear();
 
-			// 1. Cancel active consumers to stop receiving new messages from broker
-			if (this.channel && this.consumerTags.size > 0) {
-				for (const tag of this.consumerTags) {
-					try {
-						await this.channel.cancel(tag);
-					} catch (err) {
-						this.logger.warn?.(
-							`[${this.serviceName}] Failed to cancel consumer tag "${tag}":`,
-							err,
-						);
-					}
-				}
-				this.consumerTags.clear();
-			}
-
-			// 2. Wait for in-flight message handlers to finish processing (with timeout)
-			if (this.inFlightMessages > 0) {
-				this.logger.info(
-					`[${this.serviceName}] Waiting for ${this.inFlightMessages} in-flight message(s) to finish processing...`,
-				);
-
-				await Promise.race([
-					new Promise<void>((resolve) => {
-						if (this.inFlightMessages === 0) {
-							resolve();
-						} else {
-							this.drainResolvers.push(resolve);
-						}
-					}),
-					new Promise<void>((resolve) => {
-						const timer = setTimeout(() => {
-							this.logger.warn?.(
-								`[${this.serviceName}] Drain timeout (${drainTimeoutMs}ms) reached with ${this.inFlightMessages} message(s) still in-flight. Proceeding to close.`,
-							);
-							resolve();
-						}, drainTimeoutMs);
-						timer.unref?.();
-					}),
-				]);
-			}
-
-			// 3. Gracefully close channel and connection
 			if (this.channel) {
 				await this.channel.close();
 				this.channel = null;
