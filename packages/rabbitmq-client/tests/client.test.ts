@@ -98,6 +98,29 @@ describe("RabbitMQClient", () => {
 				expect.any(Error),
 			);
 		});
+
+		it("should sanitize credentials when amqp.connect throws error with password", async () => {
+			const leakError = new Error(
+				"connect ECONNREFUSED amqp://admin:supersecret@localhost:5672",
+			);
+			jest.spyOn(amqp, "connect").mockRejectedValueOnce(leakError);
+
+			const client = new RabbitMQClient({
+				url: "amqp://admin:supersecret@localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await expect(client.connect()).rejects.toThrow(
+				"connect ECONNREFUSED amqp://admin:******@localhost:5672",
+			);
+
+			const calls = (mockLogger.error as jest.Mock).mock.calls;
+			expect(calls.length).toBeGreaterThan(0);
+			const loggedError = calls[0]?.[1] as Error;
+			expect(loggedError.message).not.toContain("supersecret");
+			expect(loggedError.message).toContain("******");
+		});
 	});
 
 	describe("publishToQueue", () => {

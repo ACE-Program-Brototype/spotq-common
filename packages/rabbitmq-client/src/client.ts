@@ -16,6 +16,7 @@ import type {
 	PublishOptions,
 	RabbitMQConfig,
 } from "./types.js";
+import { sanitizeError } from "./utils.js";
 
 export class RabbitMQClient {
 	private connection: Connection | null = null;
@@ -83,7 +84,7 @@ export class RabbitMQClient {
 			connection.on("error", (err: unknown) => {
 				this.logger.error(
 					`[${this.serviceName}] RabbitMQ connection error:`,
-					err,
+					sanitizeError(err),
 				);
 			});
 
@@ -117,11 +118,12 @@ export class RabbitMQClient {
 			this.channel = null;
 			this.connection = null;
 			this.assertedQueues.clear();
+			const sanitized = sanitizeError(error);
 			this.logger.error(
 				`[${this.serviceName}] Failed to connect to RabbitMQ broker:`,
-				error,
+				sanitized,
 			);
-			throw error;
+			throw sanitized;
 		} finally {
 			this.isConnecting = false;
 		}
@@ -306,7 +308,7 @@ export class RabbitMQClient {
 			} catch (error) {
 				this.logger.error(
 					`[${this.serviceName}] Reconnection attempt failed, retrying in 5 seconds...`,
-					error,
+					sanitizeError(error),
 				);
 				this.scheduleReconnect();
 			}
