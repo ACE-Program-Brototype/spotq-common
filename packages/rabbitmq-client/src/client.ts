@@ -3,6 +3,7 @@ import {
 	DEFAULT_DLQ_SUFFIX,
 	DEFAULT_DLX_EXCHANGE,
 	DEFAULT_PREFETCH_COUNT,
+	EXCHANGE_TYPE,
 } from "./constants.js";
 import type {
 	Channel,
@@ -24,11 +25,24 @@ export class RabbitMQClient {
 	private readonly prefetchCount: number;
 	private readonly defaultDlqOptions: Required<DlqOptions>;
 	private readonly assertedQueues = new Set<string>();
+	private readonly activeConsumers = new Map<
+		string,
+		{ handler: MessageHandler<unknown>; options?: ConsumeOptions | undefined }
+	>();
 	private isConnecting = false;
+	private isExplicitClose = false;
+	private reconnectTimer: NodeJS.Timeout | null = null;
 
 	constructor(private readonly config: RabbitMQConfig) {
 		this.serviceName = config.serviceName;
-		this.logger = config.logger ?? console;
+		const noop = () => {};
+		const defaultLogger: ILogger = {
+			info: noop,
+			warn: noop,
+			error: (msg, ...args) => console.error(msg, ...args),
+			debug: noop,
+		};
+		this.logger = config.logger ?? defaultLogger;
 		this.prefetchCount = config.prefetchCount ?? DEFAULT_PREFETCH_COUNT;
 		this.defaultDlqOptions = {
 			enabled: config.dlqOptions?.enabled ?? true,
@@ -58,6 +72,7 @@ export class RabbitMQClient {
 
 		try {
 			this.isConnecting = true;
+			this.isExplicitClose = false;
 			this.logger.info(
 				`[${this.serviceName}] Connecting to RabbitMQ broker...`,
 			);
@@ -77,6 +92,7 @@ export class RabbitMQClient {
 				this.channel = null;
 				this.connection = null;
 				this.assertedQueues.clear();
+				this.scheduleReconnect();
 			});
 
 			const channel = await connection.createChannel();
@@ -130,7 +146,7 @@ export class RabbitMQClient {
 				dlqOptions?.dlqSuffix ?? this.defaultDlqOptions.dlqSuffix;
 			const dlqName = `${queue}${dlqSuffix}`;
 
-			await this.channel.assertExchange(dlxExchange, "direct", {
+			await this.channel.assertExchange(dlxExchange, EXCHANGE_TYPE.DIRECT, {
 				durable: true,
 			});
 
@@ -169,15 +185,25 @@ export class RabbitMQClient {
 			}
 
 			const payload = Buffer.from(JSON.stringify(message));
-			const sent = this.channel.sendToQueue(queue, payload, {
+			const canContinue = this.channel.sendToQueue(queue, payload, {
 				persistent: options?.persistent ?? true,
 				headers: options?.headers,
 			});
 
+			if (!canContinue) {
+				this.logger.warn?.(
+					`[${this.serviceName}] Channel buffer full for queue "${queue}". Waiting for drain...`,
+				);
+
+				await new Promise<void>((resolve) => {
+					this.channel?.once("drain", () => resolve());
+				});
+			}
+
 			this.logger.debug?.(
 				`[${this.serviceName}] Message published to queue "${queue}"`,
 			);
-			return sent;
+			return true;
 		} catch (error) {
 			this.logger.error(
 				`[${this.serviceName}] Failed to publish message to queue "${queue}":`,
@@ -192,6 +218,11 @@ export class RabbitMQClient {
 		handler: MessageHandler<T>,
 		options?: ConsumeOptions,
 	): Promise<void> {
+		this.activeConsumers.set(queue, {
+			handler: handler as MessageHandler<unknown>,
+			options,
+		});
+
 		if (!this.channel) {
 			throw new Error(
 				`[${this.serviceName}] RabbitMQ channel is not available. Call connect() first.`,
@@ -248,8 +279,49 @@ export class RabbitMQClient {
 		return this.connection;
 	}
 
+	private scheduleReconnect(): void {
+		if (this.isExplicitClose || this.reconnectTimer) {
+			return;
+		}
+
+		this.logger.warn?.(
+			`[${this.serviceName}] RabbitMQ connection lost. Attempting reconnect in 5 seconds...`,
+		);
+
+		this.reconnectTimer = setTimeout(async () => {
+			this.reconnectTimer = null;
+			try {
+				await this.connect();
+
+				for (const [
+					queue,
+					{ handler, options },
+				] of this.activeConsumers.entries()) {
+					await this.consumeFromQueue(queue, handler, options);
+				}
+
+				this.logger.info(
+					`[${this.serviceName}] Reconnected to RabbitMQ and re-subscribed all consumers successfully.`,
+				);
+			} catch (error) {
+				this.logger.error(
+					`[${this.serviceName}] Reconnection attempt failed, retrying in 5 seconds...`,
+					error,
+				);
+				this.scheduleReconnect();
+			}
+		}, 5000);
+	}
+
 	public async close(): Promise<void> {
 		try {
+			this.isExplicitClose = true;
+			if (this.reconnectTimer) {
+				clearTimeout(this.reconnectTimer);
+				this.reconnectTimer = null;
+			}
+			this.activeConsumers.clear();
+
 			if (this.channel) {
 				await this.channel.close();
 				this.channel = null;

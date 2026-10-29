@@ -313,4 +313,68 @@ describe("RabbitMQClient", () => {
 			);
 		});
 	});
+
+	describe("auto-reconnect and consumer resubscription", () => {
+		it("should schedule reconnect and re-subscribe consumers when connection drops", async () => {
+			jest.useFakeTimers();
+			const client = new RabbitMQClient({
+				url: "amqp://localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await client.connect();
+
+			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			await client.consumeFromQueue("orders", handler);
+
+			// Extract connection 'close' listener
+			const closeListener = mockConnection.on.mock.calls.find(
+				(call: any[]) => call[0] === "close",
+			)?.[1];
+
+			expect(closeListener).toBeDefined();
+
+			// Simulate unexpected connection drop
+			closeListener();
+			expect(client.isConnected()).toBe(false);
+
+			// Fast-forward 5 seconds to trigger reconnect timer
+			await jest.advanceTimersByTimeAsync(5000);
+
+			expect(amqp.connect).toHaveBeenCalledTimes(2);
+			// Check consumer was re-subscribed
+			expect(mockChannel.consume).toHaveBeenCalledTimes(2);
+			expect(client.isConnected()).toBe(true);
+
+			await client.close();
+			jest.useRealTimers();
+		});
+
+		it("should NOT reconnect if close() was called explicitly", async () => {
+			jest.useFakeTimers();
+			const client = new RabbitMQClient({
+				url: "amqp://localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await client.connect();
+			await client.close();
+
+			const closeListener = mockConnection.on.mock.calls.find(
+				(call: any[]) => call[0] === "close",
+			)?.[1];
+
+			if (closeListener) {
+				closeListener();
+			}
+
+			await jest.advanceTimersByTimeAsync(5000);
+			// Connect should still only have been called once (from initial connect)
+			expect(amqp.connect).toHaveBeenCalledTimes(1);
+
+			jest.useRealTimers();
+		});
+	});
 });
