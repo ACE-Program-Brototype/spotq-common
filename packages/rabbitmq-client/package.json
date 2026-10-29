@@ -1,16 +1,61 @@
 {
-	"name": "rabbitmq-client",
+	"name": "@spotq-org/rabbitmq-client",
 	"version": "1.0.0",
-	"description": "",
-	"main": "index.js",
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
+	"description": "Standardized RabbitMQ message broker client with Dead Letter Queuing (DLQ), ACK/NACK handling, and structured logger support for SpotQ microservices",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
+		}
 	},
-	"keywords": [],
-	"author": "",
-	"license": "ISC",
+	"publishConfig": {
+		"access": "public"
+	},
 	"type": "module",
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"prebuild": "pnpm run clean",
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+		"test:live": "node --experimental-strip-types tests/test-live-dlq.ts",
+		"prepublishOnly": "pnpm run build",
+		"publish:npm": "./scripts/publish.sh",
+		"version:patch": "./scripts/version.sh patch",
+		"version:minor": "./scripts/version.sh minor",
+		"version:major": "./scripts/version.sh major"
+	},
+	"keywords": [
+		"spotq",
+		"rabbitmq",
+		"amqp",
+		"messaging",
+		"dlq",
+		"microservices"
+	],
+	"author": "SpotQ Team",
+	"license": "UNLICENSED",
 	"dependencies": {
 		"amqplib": "^2.2.0"
+	},
+	"devDependencies": {
+		"@jest/globals": "^30.5.2",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^26.6.5",
+		"jest": "^30.5.2",
+		"ts-jest": "^29.4.15",
+		"typescript": "^5.9.3"
 	}
 }
