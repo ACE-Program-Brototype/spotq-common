@@ -245,8 +245,22 @@ export class RabbitMQClient {
 					return;
 				}
 
+				let content: T;
 				try {
-					const content = JSON.parse(msg.content.toString()) as T;
+					content = JSON.parse(msg.content.toString()) as T;
+				} catch (parseError) {
+					this.logger.error(
+						`[${this.serviceName}] Malformed JSON received from queue "${queue}". Routing to DLQ:`,
+						parseError,
+					);
+
+					if (!noAck && this.channel) {
+						this.channel.nack(msg, false, false);
+					}
+					return;
+				}
+
+				try {
 					await handler(content, msg);
 
 					if (!noAck && this.channel) {

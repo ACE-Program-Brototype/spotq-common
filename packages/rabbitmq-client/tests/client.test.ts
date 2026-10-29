@@ -293,6 +293,42 @@ describe("RabbitMQClient", () => {
 			expect(mockChannel.nack).toHaveBeenCalledWith(fakeMessage, false, true);
 		});
 
+		it("should NACK with requeue=false (send to DLQ) when JSON is malformed, even if requeueOnFailure is true", async () => {
+			const client = new RabbitMQClient({
+				url: "amqp://localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await client.connect();
+
+			const handler = jest.fn<MessageHandler<any>>(async () => {});
+			await client.consumeFromQueue("orders", handler, {
+				requeueOnFailure: true,
+			});
+
+			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const malformedMessage = {
+				content: Buffer.from("{ bad json: not valid ..."),
+			};
+
+			await consumerCallback(malformedMessage);
+
+			// Handler should never be invoked for malformed JSON
+			expect(handler).not.toHaveBeenCalled();
+			expect(mockChannel.ack).not.toHaveBeenCalled();
+			// Must be NACKed with requeue=false to avoid CPU 100% infinite loop
+			expect(mockChannel.nack).toHaveBeenCalledWith(
+				malformedMessage,
+				false,
+				false,
+			);
+			expect(mockLogger.error).toHaveBeenCalledWith(
+				expect.stringContaining("Malformed JSON received from queue"),
+				expect.any(SyntaxError),
+			);
+		});
+
 		it("should not call ack or nack if noAck is true", async () => {
 			const client = new RabbitMQClient({
 				url: "amqp://localhost:5672",
