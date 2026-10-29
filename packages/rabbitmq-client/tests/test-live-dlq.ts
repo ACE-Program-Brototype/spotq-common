@@ -1,5 +1,6 @@
 import process from "node:process";
-import { RabbitMQClient } from "../dist/index.js";
+import type { ConsumeMessage } from "amqplib";
+import { RabbitMQClient } from "../src/index.js";
 
 /**
  * Live test script to verify Dead Letter Queue (DLQ) behavior against a real RabbitMQ broker.
@@ -39,7 +40,7 @@ async function runLiveDlqTest() {
 		console.log(`[Step 1] Subscribing to Dead Letter Queue: "${dlqQueue}"...`);
 		await client.consumeFromQueue(
 			dlqQueue,
-			async (content, rawMsg) => {
+			async (content: unknown, rawMsg: ConsumeMessage) => {
 				console.log("\n🎯 [DLQ Consumer] Received dead-lettered message!");
 				console.log("  Payload:", JSON.stringify(content));
 				console.log("  Routing Key:", rawMsg.fields.routingKey);
@@ -58,7 +59,7 @@ async function runLiveDlqTest() {
 		let failureCount = 0;
 		await client.consumeFromQueue(
 			testQueue,
-			async (content) => {
+			async (content: unknown) => {
 				failureCount++;
 				console.log(
 					`\n💥 [Main Consumer] Received order payload (attempt #${failureCount}):`,
