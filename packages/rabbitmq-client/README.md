@@ -109,6 +109,8 @@ await rmq.consumeFromQueue("order_created", handler, {
 ### Automatic DLQ Configuration
 A Dead Letter Queue (`<queue_name>.dlq`) is **configured automatically** for every queue. If your consumer function throws an error, the message is automatically moved to the DLQ so no data is lost and your main queue does not get blocked.
 
+> **Malformed JSON Handling:** If an unparseable or corrupted payload enters the queue, it is immediately routed directly to the DLQ (`requeue: false`), preventing infinite retry loops.
+
 ### How to Turn Off the DLQ
 If you do not want a Dead Letter Queue for a specific queue, pass `dlq: { enabled: false }`:
 
