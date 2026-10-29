@@ -23,6 +23,7 @@ describe("RabbitMQClient", () => {
 			bindQueue: jest.fn(async () => ({})),
 			sendToQueue: jest.fn(() => true),
 			consume: jest.fn(async () => ({ consumerTag: "tag-1" })),
+			cancel: jest.fn(async () => ({ consumerTag: "tag-1" })),
 			ack: jest.fn(),
 			nack: jest.fn(),
 			close: jest.fn(async () => undefined),
@@ -371,6 +372,72 @@ describe("RabbitMQClient", () => {
 			expect(mockLogger.info).toHaveBeenCalledWith(
 				expect.stringContaining("RabbitMQ connection closed gracefully"),
 			);
+		});
+
+		it("should cancel active consumer tags on close", async () => {
+			const client = new RabbitMQClient({
+				url: "amqp://localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await client.connect();
+			await client.consumeFromQueue(
+				"orders",
+				jest.fn(async () => {}),
+			);
+
+			await client.close();
+
+			expect(mockChannel.cancel).toHaveBeenCalledWith("tag-1");
+			expect(mockChannel.close).toHaveBeenCalled();
+		});
+
+		it("should wait for in-flight message handlers to finish before closing channel", async () => {
+			const client = new RabbitMQClient({
+				url: "amqp://localhost:5672",
+				serviceName: "test-service",
+				logger: mockLogger,
+			});
+
+			await client.connect();
+
+			let resolveHandler: () => void = () => {};
+			const handlerPromise = new Promise<void>((resolve) => {
+				resolveHandler = resolve;
+			});
+
+			const handler = jest.fn(async () => {
+				await handlerPromise;
+			});
+
+			await client.consumeFromQueue("orders", handler);
+
+			const consumerCallback = mockChannel.consume.mock.calls[0][1];
+			const fakeMessage = { content: Buffer.from(JSON.stringify({ id: 1 })) };
+
+			// Start processing message (enters in-flight)
+			const processingPromise = consumerCallback(fakeMessage);
+
+			// Trigger close while handler is still in-flight
+			let closeFinished = false;
+			const closePromise = client.close().then(() => {
+				closeFinished = true;
+			});
+
+			// Channel should NOT be closed yet while handler is in-flight
+			expect(mockChannel.close).not.toHaveBeenCalled();
+			expect(closeFinished).toBe(false);
+
+			// Complete in-flight handler
+			resolveHandler();
+			await processingPromise;
+
+			// Now close should finish and channel should be closed
+			await closePromise;
+			expect(closeFinished).toBe(true);
+			expect(mockChannel.ack).toHaveBeenCalledWith(fakeMessage);
+			expect(mockChannel.close).toHaveBeenCalled();
 		});
 	});
 
