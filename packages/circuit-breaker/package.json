@@ -1,0 +1,58 @@
+{
+	"name": "@spotq-org/circuit-breaker",
+	"version": "1.0.0",
+	"description": "Standardized, configurable circuit breaker package for SpotQ microservices with failure filtering, state management, and lifecycle metrics hooks",
+	"main": "dist/index.js",
+	"types": "dist/index.d.ts",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js",
+			"require": "./dist/index.js"
+		}
+	},
+	"publishConfig": {
+		"access": "public"
+	},
+	"type": "module",
+	"engines": {
+		"node": ">=18.0.0"
+	},
+	"scripts": {
+		"clean": "rm -rf dist",
+		"prebuild": "pnpm run clean",
+		"build": "tsc -p tsconfig.build.json",
+		"typecheck": "tsc --noEmit",
+		"lint": "biome check .",
+		"format": "biome format --write .",
+		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
+		"test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
+		"prepublishOnly": "pnpm run build"
+	},
+	"keywords": [
+		"spotq",
+		"circuit-breaker",
+		"resilience",
+		"fault-tolerance",
+		"opossum",
+		"microservices"
+	],
+	"author": "SpotQ Team",
+	"license": "UNLICENSED",
+	"dependencies": {
+		"opossum": "^10.0.0"
+	},
+	"devDependencies": {
+		"@jest/globals": "^30.5.2",
+		"@types/jest": "^30.0.0",
+		"@types/node": "^20.19.43",
+		"@types/opossum": "^8.1.9",
+		"jest": "^30.5.2",
+		"ts-jest": "^29.4.15",
+		"typescript": "^5.9.3"
+	}
+}
