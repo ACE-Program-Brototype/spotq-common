@@ -22,6 +22,12 @@
 	"engines": {
 		"node": ">=18.0.0"
 	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/ACE-Program-Brototype/spotq-common.git",
+		"directory": "packages/circuit-breaker"
+	},
+	"homepage": "https://github.com/ACE-Program-Brototype/spotq-common#readme",
 	"scripts": {
 		"clean": "rm -rf dist",
 		"prebuild": "pnpm run clean",
@@ -31,7 +37,11 @@
 		"format": "biome format --write .",
 		"test": "NODE_OPTIONS=--experimental-vm-modules jest",
 		"test:coverage": "NODE_OPTIONS=--experimental-vm-modules jest --coverage",
-		"prepublishOnly": "pnpm run build"
+		"prepublishOnly": "pnpm run build",
+		"publish:npm": "./scripts/publish.sh",
+		"version:patch": "./scripts/version.sh patch",
+		"version:minor": "./scripts/version.sh minor",
+		"version:major": "./scripts/version.sh major"
 	},
 	"keywords": [
 		"spotq",
