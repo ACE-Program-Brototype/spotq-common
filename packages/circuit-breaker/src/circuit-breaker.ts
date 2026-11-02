@@ -190,5 +190,6 @@ export class CircuitBreaker<
 
 	public shutdown(): void {
 		this.underlying.shutdown();
+		this.removeAllListeners();
 	}
 }

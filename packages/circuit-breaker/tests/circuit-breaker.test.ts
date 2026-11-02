@@ -481,5 +481,20 @@ describe("CircuitBreaker", () => {
 
 			breaker.shutdown();
 		});
+
+		it("should remove all event listeners on shutdown", () => {
+			const breaker = new CircuitBreaker(async () => "val", {
+				name: "shutdown-listeners-test",
+			});
+
+			breaker.on("open", () => {});
+			breaker.on("close", () => {});
+			expect(breaker.listenerCount("open")).toBe(1);
+			expect(breaker.listenerCount("close")).toBe(1);
+
+			breaker.shutdown();
+			expect(breaker.listenerCount("open")).toBe(0);
+			expect(breaker.listenerCount("close")).toBe(0);
+		});
 	});
 });
