@@ -14,7 +14,6 @@ export class CircuitBreakerOpenError extends Error {
 		this.name = ERROR_NAMES.OPEN;
 		this.breakerName = breakerName;
 		this.originalError = originalError;
-		Object.setPrototypeOf(this, CircuitBreakerOpenError.prototype);
 	}
 }
 
@@ -35,6 +34,5 @@ export class CircuitBreakerTimeoutError extends Error {
 		this.breakerName = breakerName;
 		this.timeoutMs = timeoutMs;
 		this.originalError = originalError;
-		Object.setPrototypeOf(this, CircuitBreakerTimeoutError.prototype);
 	}
 }
