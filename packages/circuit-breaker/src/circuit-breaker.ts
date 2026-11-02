@@ -115,14 +115,13 @@ export class CircuitBreaker<
 		);
 	}
 
-	public fallback(fn: FallbackFunction<TArgs, TReturn>): this {
+	public fallback(fn: FallbackFunction<TArgs, TReturn>): void {
 		this.customFallback = fn;
 		this.underlying.fallback((...args: unknown[]) => {
 			return (this.customFallback as (...params: unknown[]) => unknown)(
 				...args,
 			);
 		});
-		return this;
 	}
 
 	public async execute(...args: TArgs): Promise<TReturn> {

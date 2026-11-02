@@ -123,7 +123,7 @@ const breaker = new CircuitBreaker(fetchData, {
 
 A fallback provides a safe backup value when downstream is down or timed out.
 
-You can configure fallback in options or via method chaining:
+You can configure fallback in options or via the `.fallback()` method:
 
 ```typescript
 // Via options:
@@ -134,7 +134,7 @@ const breaker = new CircuitBreaker(fetchRestaurant, {
   },
 });
 
-// Or via method chaining:
+// Or via .fallback() method:
 breaker.fallback((restaurantId, error) => {
   return { id: restaurantId, name: "Cached Restaurant", isCached: true };
 });

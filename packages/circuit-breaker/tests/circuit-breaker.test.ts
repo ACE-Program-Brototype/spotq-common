@@ -288,7 +288,7 @@ describe("CircuitBreaker", () => {
 			breaker.shutdown();
 		});
 
-		it("should support registering fallback via .fallback() method chaining", async () => {
+		it("should support registering fallback via .fallback() method", async () => {
 			const breaker = new CircuitBreaker(
 				async (): Promise<string> => {
 					throw new Error("Immediate fail");
