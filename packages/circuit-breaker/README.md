@@ -63,7 +63,7 @@ When instantiating `new CircuitBreaker(action, options)`, `options` accepts the 
 | **`volumeThreshold`** | `number` | Optional | `5` | Minimum number of requests in the window before failure rate is evaluated. (Prevents tripping on the first request). |
 | **`rollingWindowMs`** | `number` | Optional | `10000` (10s) | Duration of the sliding statistical evaluation window. |
 | **`rollingWindowBuckets`** | `number` | Optional | `10` | Number of time buckets partitioning the rolling window (e.g. 10 buckets = 1s per bucket). |
-| **`checkIsFailure`** | `(err) => boolean` | Optional | `() => true` | Predicate function to determine which errors count as circuit failures. |
+| **`checkIsFailure`** | `(err, ...args) => boolean` | Optional | `() => true` | Predicate function to determine which errors count as circuit failures. Receives the error and original request arguments. |
 | **`fallback`** | `FallbackFunction` | Optional | `undefined` | Backup function to run when the circuit is `OPEN`, timed out, or failing. |
 | **`onOpen`** | `() => void` | Optional | `undefined` | Hook called when the circuit trips to `OPEN`. |
 | **`onClose`** | `() => void` | Optional | `undefined` | Hook called when the circuit recovers to `CLOSED`. |
@@ -98,13 +98,16 @@ console.log(restaurantBreaker.isHalfOpen); // boolean
 
 In HTTP microservices, a `404 Not Found` or `400 Bad Request` represents a domain or user validation condition, **not** an upstream server crash. Counting 4xx errors toward circuit failure statistics would cause false outages.
 
-Use `checkIsFailure` to exclude non-transient errors:
+Use `checkIsFailure` to exclude non-transient errors (with access to both the `error` and original call `...args`):
 
 ```typescript
 const breaker = new CircuitBreaker(fetchData, {
   name: "restaurant-service",
-  checkIsFailure: (error: any) => {
+  checkIsFailure: (error: any, endpoint?: string) => {
     // Return false = DO NOT count as a circuit failure (ignore it)
+    if (endpoint === "/optional-health") {
+      return false;
+    }
     if (error.response && error.response.status < 500) {
       return false;
     }

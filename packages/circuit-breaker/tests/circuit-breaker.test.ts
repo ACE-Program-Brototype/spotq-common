@@ -259,6 +259,46 @@ describe("CircuitBreaker", () => {
 
 			breaker.shutdown();
 		});
+
+		it("should pass request arguments to checkIsFailure predicate", async () => {
+			const action = jest.fn(
+				async (endpoint: string, _payload: { id: string }) => {
+					throw new Error(`Failed call to ${endpoint}`);
+				},
+			);
+
+			const checkIsFailureMock = jest.fn(
+				(_err: unknown, endpoint: string, payload: { id: string }) => {
+					// Exclude errors for optional endpoints or specific payload IDs
+					if (endpoint === "/optional-endpoint" || payload.id === "skip") {
+						return false;
+					}
+					return true;
+				},
+			);
+
+			const breaker = new CircuitBreaker(action, {
+				name: "test-filter-args",
+				volumeThreshold: 1,
+				errorThresholdPercentage: 50,
+				checkIsFailure: checkIsFailureMock,
+			});
+
+			await expect(
+				breaker.execute("/optional-endpoint", { id: "skip" }),
+			).rejects.toThrow("Failed call to /optional-endpoint");
+
+			expect(checkIsFailureMock).toHaveBeenCalledTimes(1);
+			expect(checkIsFailureMock).toHaveBeenCalledWith(
+				expect.any(Error),
+				"/optional-endpoint",
+				{ id: "skip" },
+			);
+			// Circuit remains closed because checkIsFailure returned false using the args
+			expect(breaker.isClosed).toBe(true);
+
+			breaker.shutdown();
+		});
 	});
 
 	describe("Fallback Support", () => {

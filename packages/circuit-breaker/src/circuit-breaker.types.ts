@@ -20,7 +20,7 @@ export interface CircuitBreakerOptions<
 	rollingWindowMs?: number;
 	rollingWindowBuckets?: number;
 	volumeThreshold?: number;
-	checkIsFailure?: (error: unknown) => boolean;
+	checkIsFailure?: (error: unknown, ...args: TArgs) => boolean;
 	fallback?: FallbackFunction<TArgs, TReturn>;
 	onOpen?: () => void;
 	onClose?: () => void;

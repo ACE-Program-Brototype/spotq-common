@@ -58,7 +58,8 @@ export class CircuitBreaker<
 
 		const checkIsFailure = options.checkIsFailure;
 		const errorFilter = checkIsFailure
-			? (err: unknown) => !checkIsFailure(err)
+			? (err: unknown, ...args: unknown[]) =>
+					!checkIsFailure(err, ...(args as TArgs))
 			: undefined;
 
 		this.underlying = new OpossumBreaker(
