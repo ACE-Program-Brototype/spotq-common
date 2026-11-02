@@ -35,9 +35,18 @@ export class CircuitBreaker<
 		options: CircuitBreakerOptions<TArgs, TReturn>,
 	) {
 		super();
+
+		if (
+			!options?.name ||
+			typeof options.name !== "string" ||
+			options.name.trim() === ""
+		) {
+			throw new Error(ERROR_MESSAGES.MISSING_NAME);
+		}
+
 		this.action = action;
 		this.options = options;
-		this.name = options.name;
+		this.name = options.name.trim();
 
 		const timeoutMs =
 			options.timeoutMs ?? DEFAULT_CIRCUIT_BREAKER_OPTIONS.timeoutMs;

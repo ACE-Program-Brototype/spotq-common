@@ -25,6 +25,7 @@ export const ERROR_NAMES = {
 } as const;
 
 export const ERROR_MESSAGES = {
+	MISSING_NAME: "Circuit breaker requires a valid, non-empty 'name'",
 	OPEN: (breakerName: string) =>
 		`Circuit breaker '${breakerName}' is OPEN: fast-failing request`,
 	TIMEOUT: (breakerName: string, timeoutMs: number) =>

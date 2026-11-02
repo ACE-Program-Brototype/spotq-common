@@ -32,6 +32,22 @@ describe("CircuitBreaker", () => {
 
 			breaker.shutdown();
 		});
+
+		it("should throw error if name is missing or empty", () => {
+			expect(
+				() =>
+					new CircuitBreaker(async () => "ok", {
+						name: "",
+					}),
+			).toThrow("Circuit breaker requires a valid, non-empty 'name'");
+			expect(
+				() =>
+					new CircuitBreaker(
+						async () => "ok",
+						{} as unknown as { name: string },
+					),
+			).toThrow("Circuit breaker requires a valid, non-empty 'name'");
+		});
 	});
 
 	describe("AC 2: Trip to Open (Failure Threshold & Fast-Fail)", () => {
