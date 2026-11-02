@@ -113,7 +113,7 @@ export class CircuitBreaker<
 
 		this.underlying.on(
 			CIRCUIT_BREAKER_EVENTS.FALLBACK,
-			(result: unknown, err: Error) => {
+			(result: unknown, err: unknown) => {
 				this.options.onFallback?.(result as TReturn, err);
 				this.emit(CIRCUIT_BREAKER_EVENTS.FALLBACK, result, err);
 			},
