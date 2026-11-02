@@ -141,7 +141,10 @@ export class CircuitBreaker<
 					err,
 				);
 			}
-			if (errorCode === OPOSSUM_ERROR_CODES.TIMED_OUT) {
+			if (
+				errorCode === OPOSSUM_ERROR_CODES.TIMED_OUT &&
+				this.options.timeoutMs !== 0
+			) {
 				const timeoutMs =
 					this.options.timeoutMs ?? DEFAULT_CIRCUIT_BREAKER_OPTIONS.timeoutMs;
 				throw new CircuitBreakerTimeoutError(

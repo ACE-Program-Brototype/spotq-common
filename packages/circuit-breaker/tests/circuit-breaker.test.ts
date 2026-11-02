@@ -406,6 +406,28 @@ describe("CircuitBreaker", () => {
 
 			breaker.shutdown();
 		});
+
+		it("should not wrap network ETIMEDOUT error when timeoutMs is 0 (disabled)", async () => {
+			const networkErrorAction = async () => {
+				const error = new Error("Connection timed out") as Error & {
+					code: string;
+				};
+				error.code = "ETIMEDOUT";
+				throw error;
+			};
+
+			const breaker = new CircuitBreaker(networkErrorAction, {
+				name: "no-timeout-service",
+				timeoutMs: 0,
+			});
+
+			await expect(breaker.execute()).rejects.toThrow("Connection timed out");
+			await expect(breaker.execute()).rejects.not.toBeInstanceOf(
+				CircuitBreakerTimeoutError,
+			);
+
+			breaker.shutdown();
+		});
 	});
 
 	describe("Lifecycle Event Subscriptions", () => {
