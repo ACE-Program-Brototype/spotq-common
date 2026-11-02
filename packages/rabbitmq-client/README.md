@@ -19,7 +19,8 @@ import { RabbitMQClient } from "@spotq-org/rabbitmq-client";
 
 const rmq = new RabbitMQClient({
   url: process.env.RABBITMQ_URL!, // required
-  serviceName: "order-service", // required
+  serviceName: "order-service",   // required
+  logger: console,                // optional: pass custom logger (e.g. Winston, Pino, or console)
 });
 
 await rmq.connect();
@@ -27,7 +28,41 @@ await rmq.connect();
 
 ---
 
-## 2. Core Functions
+## 2. Configuration (`RabbitMQConfig`)
+
+When instantiating `new RabbitMQClient(config)`, `config` accepts the following options:
+
+| Option | Type | Required? | Default | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| **`url`** | `string` | **YES** | — | AMQP connection URL (e.g. `amqp://guest:guest@localhost:5672`). Credentials in URL are automatically sanitized in error logs. |
+| **`serviceName`** | `string` | **YES** | — | Service name identifier used for structured logs and tracing. |
+| **`logger`** | `ILogger` | Optional | Default logger | Custom logger implementing `info`, `error`, `warn`, and optional `debug` (e.g. `console`, Winston, or Pino). |
+| **`prefetchCount`** | `number` | Optional | `10` | Number of unacknowledged messages the consumer channel will fetch concurrently. |
+| **`dlqOptions`** | `DlqOptions` | Optional | `{ enabled: true, dlqSuffix: ".dlq" }` | Global Dead Letter Queue (DLQ) settings. |
+
+### Passing a Custom Logger
+
+You can pass standard loggers (such as Winston, Pino, or `console`) directly via `logger`:
+
+```typescript
+import { RabbitMQClient, type ILogger } from "@spotq-org/rabbitmq-client";
+import winston from "winston";
+
+const customLogger: ILogger = winston.createLogger({
+  level: "info",
+  transports: [new winston.transports.Console()],
+});
+
+const rmq = new RabbitMQClient({
+  url: process.env.RABBITMQ_URL!,
+  serviceName: "restaurant-service",
+  logger: customLogger,
+});
+```
+
+---
+
+## 3. Core Functions
 
 ### Publish a Message
 Sends an object as a JSON message to a queue. If the queue does not exist, it is created automatically.
@@ -81,7 +116,7 @@ await rmq.consumeFromQueue("order_created", handleOrderCreated);
 
 ---
 
-## 3. Advanced Options
+## 4. Advanced Options
 
 Both `publishToQueue` and `consumeFromQueue` accept optional settings as a third argument:
 
@@ -104,7 +139,7 @@ await rmq.consumeFromQueue("order_created", handler, {
 
 ---
 
-## 4. Dead Letter Queue (DLQ) & Acknowledgment
+## 5. Dead Letter Queue (DLQ) & Acknowledgment
 
 ### Automatic DLQ Configuration
 A Dead Letter Queue (`<queue_name>.dlq`) is **configured automatically** for every queue. If your consumer function throws an error, the message is automatically moved to the DLQ so no data is lost and your main queue does not get blocked.

@@ -74,7 +74,7 @@ pnpm run build
 if [ "$DRY_RUN" = false ]; then
 	if npm view "${NAME}@${VERSION}" version >/dev/null 2>&1; then
 		PUBLISHED_VERSION=$(npm view "${NAME}@${VERSION}" version)
-		if [ "$PUBLISHED_VERSION" == "$VERSION" ]; then
+		if [ "$PUBLISHED_VERSION" = "$VERSION" ]; then
 			error "Version ${VERSION} already exists on npm registry"
 			exit 1
 		fi
