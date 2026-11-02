@@ -36,6 +36,10 @@ export class CircuitBreaker<
 	) {
 		super();
 
+		if (typeof action !== "function") {
+			throw new TypeError(ERROR_MESSAGES.INVALID_ACTION);
+		}
+
 		if (
 			!options?.name ||
 			typeof options.name !== "string" ||

@@ -33,6 +33,21 @@ describe("CircuitBreaker", () => {
 			breaker.shutdown();
 		});
 
+		it("should throw TypeError if action is not a function", () => {
+			expect(
+				() =>
+					new CircuitBreaker(null as unknown as () => Promise<string>, {
+						name: "test",
+					}),
+			).toThrow(TypeError);
+			expect(
+				() =>
+					new CircuitBreaker(undefined as unknown as () => Promise<string>, {
+						name: "test",
+					}),
+			).toThrow("Circuit breaker requires a valid action function");
+		});
+
 		it("should throw error if name is missing or empty", () => {
 			expect(
 				() =>
