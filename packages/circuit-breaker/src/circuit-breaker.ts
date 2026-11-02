@@ -52,9 +52,9 @@ export class CircuitBreaker<
 			options.timeoutMs ?? DEFAULT_CIRCUIT_BREAKER_OPTIONS.timeoutMs;
 		const timeout = timeoutMs === 0 ? false : timeoutMs;
 
-		const isFailure = options.isFailure;
-		const errorFilter = isFailure
-			? (err: unknown) => !isFailure(err)
+		const checkIsFailure = options.checkIsFailure;
+		const errorFilter = checkIsFailure
+			? (err: unknown) => !checkIsFailure(err)
 			: undefined;
 
 		this.underlying = new OpossumBreaker(

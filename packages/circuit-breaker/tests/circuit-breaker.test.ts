@@ -195,7 +195,7 @@ describe("CircuitBreaker", () => {
 		});
 	});
 
-	describe("AC 4: Error Filtering (isFailure Predicate)", () => {
+	describe("AC 4: Error Filtering (checkIsFailure Predicate)", () => {
 		interface HttpError extends Error {
 			statusCode: number;
 		}
@@ -215,7 +215,7 @@ describe("CircuitBreaker", () => {
 				name: "test-filter",
 				volumeThreshold: 2,
 				errorThresholdPercentage: 50,
-				isFailure: (err) => {
+				checkIsFailure: (err) => {
 					// 4xx errors are client errors, not circuit breaker upstream outage failures
 					if (typeof err === "object" && err !== null && "statusCode" in err) {
 						return (err as { statusCode: number }).statusCode >= 500;
@@ -229,7 +229,7 @@ describe("CircuitBreaker", () => {
 				await expect(breaker.execute(404)).rejects.toThrow("HTTP error 404");
 			}
 
-			// Circuit should remain CLOSED because 404 was excluded by isFailure
+			// Circuit should remain CLOSED because 404 was excluded by checkIsFailure
 			expect(breaker.isClosed).toBe(true);
 			expect(breaker.isOpen).toBe(false);
 

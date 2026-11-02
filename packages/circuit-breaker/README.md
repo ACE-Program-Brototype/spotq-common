@@ -63,7 +63,7 @@ When instantiating `new CircuitBreaker(action, options)`, `options` accepts the 
 | **`volumeThreshold`** | `number` | Optional | `5` | Minimum number of requests in the window before failure rate is evaluated. (Prevents tripping on the first request). |
 | **`rollingWindowMs`** | `number` | Optional | `10000` (10s) | Duration of the sliding statistical evaluation window. |
 | **`rollingWindowBuckets`** | `number` | Optional | `10` | Number of time buckets partitioning the rolling window (e.g. 10 buckets = 1s per bucket). |
-| **`isFailure`** | `(err) => boolean` | Optional | `() => true` | Predicate to filter which errors count as circuit failures. |
+| **`checkIsFailure`** | `(err) => boolean` | Optional | `() => true` | Predicate function to determine which errors count as circuit failures. |
 | **`fallback`** | `FallbackFunction` | Optional | `undefined` | Backup function to run when the circuit is `OPEN`, timed out, or failing. |
 | **`onOpen`** | `() => void` | Optional | `undefined` | Hook called when the circuit trips to `OPEN`. |
 | **`onClose`** | `() => void` | Optional | `undefined` | Hook called when the circuit recovers to `CLOSED`. |
@@ -94,16 +94,16 @@ console.log(restaurantBreaker.isHalfOpen); // boolean
 
 ---
 
-## 4. Custom Failure Filtering (`isFailure`)
+## 4. Custom Failure Filtering (`checkIsFailure`)
 
 In HTTP microservices, a `404 Not Found` or `400 Bad Request` represents a domain or user validation condition, **not** an upstream server crash. Counting 4xx errors toward circuit failure statistics would cause false outages.
 
-Use `isFailure` to exclude non-transient errors:
+Use `checkIsFailure` to exclude non-transient errors:
 
 ```typescript
 const breaker = new CircuitBreaker(fetchData, {
   name: "restaurant-service",
-  isFailure: (error: any) => {
+  checkIsFailure: (error: any) => {
     // Return false = DO NOT count as a circuit failure (ignore it)
     if (error.response && error.response.status < 500) {
       return false;
@@ -114,8 +114,8 @@ const breaker = new CircuitBreaker(fetchData, {
 });
 ```
 
-* When `isFailure(err)` returns `false`: The error is thrown back to your caller normally, but the failure counter is **not** incremented.
-* When `isFailure(err)` returns `true`: It counts toward the threshold and can trip the breaker to `OPEN`.
+* When `checkIsFailure(err)` returns `false`: The error is thrown back to your caller normally, but the failure counter is **not** incremented.
+* When `checkIsFailure(err)` returns `true`: It counts toward the threshold and can trip the breaker to `OPEN`.
 
 ---
 
