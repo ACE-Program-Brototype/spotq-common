@@ -140,7 +140,9 @@ breaker.fallback((restaurantId, error) => {
 });
 ```
 
-> **Note:** If you do **not** provide a fallback (e.g. for payments or order placement), the circuit breaker throws `CircuitBreakerOpenError` so you can return an HTTP 503 status.
+> **Note on Fallback Parameters:** Opossum passes the original action arguments first, followed by the trailing `error` object: `(...args, error) => ...`. If your action takes no arguments `() => ...`, the first argument passed to fallback is `(error)`.
+>
+> If you do **not** provide a fallback (e.g. for payments or order placement), the circuit breaker throws `CircuitBreakerOpenError` so you can return an HTTP 503 status.
 
 ---
 

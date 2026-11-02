@@ -7,10 +7,7 @@ export enum CircuitBreakerState {
 export type FallbackFunction<
 	TArgs extends unknown[] = unknown[],
 	TReturn = unknown,
-> =
-	| ((...args: [...TArgs, error: unknown]) => TReturn | Promise<TReturn>)
-	| ((error: unknown) => TReturn | Promise<TReturn>)
-	| (() => TReturn | Promise<TReturn>);
+> = (...args: [...TArgs, error: unknown]) => TReturn | Promise<TReturn>;
 
 export interface CircuitBreakerOptions<
 	TArgs extends unknown[] = unknown[],
