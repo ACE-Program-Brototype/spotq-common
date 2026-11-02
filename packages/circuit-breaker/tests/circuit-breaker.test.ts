@@ -121,6 +121,7 @@ describe("CircuitBreaker", () => {
 					"restaurant-service",
 				);
 				expect((err as CircuitBreakerOpenError).code).toBe("EOPENBREAKER");
+				expect((err as Error).cause).toBeDefined();
 			}
 
 			breaker.shutdown();
@@ -402,6 +403,7 @@ describe("CircuitBreaker", () => {
 					"eta-service",
 				);
 				expect((err as CircuitBreakerTimeoutError).timeoutMs).toBe(25);
+				expect((err as Error).cause).toBeDefined();
 			}
 
 			breaker.shutdown();

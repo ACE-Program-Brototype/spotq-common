@@ -10,7 +10,10 @@ export class CircuitBreakerOpenError extends Error {
 		breakerName?: string | undefined,
 		originalError?: unknown | undefined,
 	) {
-		super(message);
+		super(
+			message,
+			originalError !== undefined ? { cause: originalError } : undefined,
+		);
 		this.name = ERROR_NAMES.OPEN;
 		this.breakerName = breakerName;
 		this.originalError = originalError;
@@ -29,7 +32,10 @@ export class CircuitBreakerTimeoutError extends Error {
 		timeoutMs?: number | undefined,
 		originalError?: unknown | undefined,
 	) {
-		super(message);
+		super(
+			message,
+			originalError !== undefined ? { cause: originalError } : undefined,
+		);
 		this.name = ERROR_NAMES.TIMEOUT;
 		this.breakerName = breakerName;
 		this.timeoutMs = timeoutMs;
